@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soezy — Terms of Service</title>
+  <meta name="description" content="Terms of Service for Soezy, a multipurpose Discord bot.">
+  <style>
+    :root {
+      --bg: #0b0b10;
+      --card: #12131a;
+      --card2: #171923;
+      --text: #f5f5f7;
+      --muted: #a7a9b4;
+      --line: #292b36;
+      --accent: #8b7cff;
+      --accent2: #b2a8ff;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(139,124,255,.20), transparent 35%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+    }
+    .wrap { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 72px 0 40px; text-align: center; }
+    .logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 58px; height: 58px; border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent), #5f50d8);
+      font-size: 25px; font-weight: 800;
+      box-shadow: 0 16px 50px rgba(139,124,255,.25);
+      margin-bottom: 20px;
+    }
+    h1 { font-size: clamp(34px, 6vw, 54px); line-height: 1.1; margin: 0 0 12px; }
+    .subtitle { color: var(--muted); margin: 0 auto; max-width: 650px; }
+    .date { margin-top: 18px; color: var(--accent2); font-size: 14px; }
+    .content {
+      background: rgba(18,19,26,.88);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: clamp(24px, 5vw, 48px);
+      margin-bottom: 40px;
+      box-shadow: 0 20px 80px rgba(0,0,0,.22);
+    }
+    .notice {
+      background: var(--card2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      color: var(--muted);
+      margin-bottom: 34px;
+    }
+    h2 { font-size: 22px; margin: 34px 0 10px; }
+    h2:first-of-type { margin-top: 0; }
+    h3 { font-size: 17px; margin-top: 22px; }
+    p, li { color: #d7d8df; }
+    ul { padding-left: 24px; }
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer {
+      color: var(--muted);
+      text-align: center;
+      padding: 0 0 45px;
+      font-size: 14px;
+    }
+    .nav {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+      margin-top: 22px;
+    }
+    .nav a {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+    }
+    @media (max-width: 600px) {
+      header { padding-top: 48px; }
+      .content { border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="logo">S</div>
+    <h1>Soezy Terms of Service</h1>
+    <p class="subtitle">
+      These Terms govern your use of Soezy, a multipurpose Discord bot
+      providing moderation, security, ticketing, utilities and community features.
+    </p>
+    <div class="date">Effective: September 1, 2026</div>
+    <div class="nav">
+      <a href="#acceptance">Acceptance</a>
+      <a href="#service">Service</a>
+      <a href="#rules">Rules</a>
+      <a href="#termination">Termination</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <article class="content">
+      <div class="notice">
+        By adding, configuring, or using Soezy in a Discord server, you agree to
+        these Terms of Service. The Privacy Policy below explains how information
+        is handled. If you do not agree, do not use Soezy.
+      </div>
+
+      <h2 id="acceptance">1. Acceptance of Terms</h2>
+      <p>
+        By using Soezy ("the Bot", "Soezy", "we", "us", or "our"), you agree to
+        these Terms of Service and any applicable Discord policies. If you use
+        Soezy on behalf of a server, community, organization, or other entity,
+        you confirm that you have permission to do so.
+      </p>
+
+      <h2 id="service">2. Description of the Service</h2>
+      <p>Soezy is a multipurpose Discord application that may provide features including:</p>
+      <ul>
+        <li>Moderation and automoderation tools.</li>
+        <li>Anti-nuke and server security features.</li>
+        <li>Ticket and support systems.</li>
+        <li>Server utilities and administrative commands.</li>
+        <li>Giveaways and community engagement features.</li>
+        <li>Reaction, vanity and other role-management features.</li>
+        <li>Welcome, logging and server-management features.</li>
+      </ul>
+      <p>
+        Features may change, be added, removed, limited, or discontinued at any time.
+        Some features may require specific Discord permissions or configuration.
+      </p>
+
+      <h2>3. Discord and Third-Party Services</h2>
+      <p>
+        Soezy operates through Discord and depends on Discord's services and APIs.
+        Your use of Discord remains subject to Discord's own Terms of Service,
+        Community Guidelines, Developer Policies and other applicable policies.
+      </p>
+      <p>
+        Soezy is an independent third-party application and is not owned, operated,
+        endorsed, or sponsored by Discord.
+      </p>
+
+      <h2>4. Server Permissions and Administrator Responsibility</h2>
+      <p>
+        Server owners and administrators are responsible for deciding whether to
+        install Soezy, which permissions to grant it, and how its features are
+        configured.
+      </p>
+      <p>
+        Administrators are responsible for using moderation, role-management,
+        logging, ticketing and security commands appropriately and in accordance
+        with applicable laws, Discord policies, and their own server rules.
+      </p>
+
+      <h2 id="rules">5. Acceptable Use</h2>
+      <p>You must not use Soezy to:</p>
+      <ul>
+        <li>Break Discord's Terms, Community Guidelines, Developer Policy, or other applicable policies.</li>
+        <li>Conduct harassment, threats, fraud, abuse, spam, raids, or other harmful activity.</li>
+        <li>Attempt to gain unauthorized access to Discord accounts, servers, systems, or data.</li>
+        <li>Use the Bot to distribute malware or other malicious software.</li>
+        <li>Abuse automated features to interfere with Discord or other users.</li>
+        <li>Use the Bot for unlawful purposes.</li>
+      </ul>
+
+      <h2>6. Availability and Changes</h2>
+      <p>
+        We aim to keep Soezy available and functional, but we do not guarantee
+        uninterrupted, error-free, or permanent availability. Maintenance,
+        Discord API changes, outages, bugs, security incidents, or other
+        circumstances may affect the service.
+      </p>
+      <p>
+        We may modify, suspend, or discontinue any part of Soezy at any time.
+      </p>
+
+      <h2>7. Data and Privacy</h2>
+      <p>
+        Soezy may access information made available to Discord applications,
+        depending on the permissions and intents enabled for the Bot and the
+        features used by a server.
+      </p>
+      <p>
+        Information about how Soezy handles data is described in our Privacy
+        Policy. Replace the link below with your actual Privacy Policy URL before
+        publishing this page:
+      </p>
+      <p><a href="#privacy">Read the Soezy Privacy Policy →</a></p>
+
+      <h2>8. User and Server Content</h2>
+      <p>
+        Soezy does not claim ownership of content created or posted by Discord
+        users. You remain responsible for content you create, submit, or cause
+        Soezy to process through your use of its features.
+      </p>
+
+      <h2 id="termination">9. Suspension and Termination</h2>
+      <p>
+        We may restrict, suspend, or terminate access to Soezy where reasonably
+        necessary, including for abuse, security concerns, violations of these
+        Terms, violations of Discord policies, or unlawful use.
+      </p>
+      <p>
+        Server administrators may remove Soezy from their server at any time.
+      </p>
+
+      <h2>10. Disclaimer</h2>
+      <p>
+        Soezy is provided on an "as available" and "as is" basis to the extent
+        permitted by applicable law. We do not guarantee that every feature will
+        always work, that the Bot will prevent every moderation or security
+        incident, or that the service will meet every particular server's needs.
+      </p>
+
+      <h2>11. Limitation of Liability</h2>
+      <p>
+        To the maximum extent permitted by applicable law, the developers and
+        operators of Soezy will not be responsible for indirect, incidental,
+        special, consequential, or other losses arising from or related to the
+        use of, inability to use, or reliance on the Bot.
+      </p>
+
+      <h2>12. Changes to These Terms</h2>
+      <p>
+        We may update these Terms from time to time. When material changes are
+        made, we may update the effective date on this page or provide notice
+        through an appropriate channel. Continued use of Soezy after changes
+        become effective means you accept the updated Terms.
+      </p>
+
+      <h2>13. Contact</h2>
+      <p>
+        If you have questions about these Terms or Soezy, contact the Soezy
+        development team through your official support channel.
+      </p>
+      <p>
+        <strong>Official support:</strong>
+        <a href="https://discord.gg/bdAGSGmHvR" target="_blank" rel="noopener">
+          Soezy Support Discord
+        </a>
+      </p>
+
+      <h2>14. Legal Notice</h2>
+      <p>
+        This document is a general Terms of Service template for Soezy and is
+        not legal advice. Before relying on it as a formal legal agreement,
+        review it with a qualified legal professional and replace any
+        placeholders with your actual business/developer information.
+      </p>
+    </article>
+  </main>
+
+  <footer class="wrap">
+    © 2026 Soezy. All rights reserved.
+  </footer>
+</body>
+</html>
