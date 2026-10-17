@@ -1,0 +1,10 @@
+.env
+.env.*
+config.json
+database.json
+tests/config.json
+node_modules/
+logs/
+deploy-backups/
+deployment/backups/
+*.log

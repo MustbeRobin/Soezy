@@ -1,0 +1,6 @@
+[Unit]
+Description=Rotate Soezy and PM2 logs
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/logrotate --state /var/lib/logrotate/soezy.status /etc/logrotate-soezy.conf

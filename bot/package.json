@@ -1,0 +1,43 @@
+{
+  "name": "soezy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "check": "node --check index.js && node --check handlers/index.js && node --check handlers/runtime-files.js && node --check commands/registry.js && node --check web/server.js && node --check web/dashboard.js && node --check web/website.js && node --check web/public/assets/app.js && node --check web/public/assets/dashboard.js",
+    "validate": "node -e \"const {loadCommandCollection}=require('./commands/registry'); const c=loadCommandCollection(); const d=c.diagnostics; console.log(JSON.stringify({commands:c.size, failedImports:d.failedImports.length, missingExports:d.missingExports.length, duplicateNames:d.duplicateNames.length}, null, 2)); if(d.failedImports.length||d.missingExports.length||d.duplicateNames.length) process.exit(1);\"",
+    "lavalink:verify": "node deployment/lavalink-check.js",
+    "redis:verify": "node deployment/redis-database.js verify",
+    "redis:migrate": "node deployment/redis-database.js migrate",
+    "redis:export": "node deployment/redis-database.js export"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Soezy Music Bot",
+  "dependencies": {
+    "axios": "^1.17.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "discord.js": "^14.26.4",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "express-rate-limit": "^8.5.2",
+    "express-session": "^1.19.0",
+    "helmet": "^8.2.0",
+    "libsodium-wrappers": "^0.7.16",
+    "mongoose": "^8.24.0",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "redis": "5.12.1",
+    "sharp": "^0.34.5",
+    "shoukaku": "^4.3.0",
+    "socket.io": "^4.8.3",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
