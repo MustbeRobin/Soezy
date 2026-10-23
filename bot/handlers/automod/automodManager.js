@@ -109,70 +109,9 @@ function save(deps = {}) {
   else if (typeof globalThis.saveDB === "function") globalThis.saveDB();
 }
 
-function getMongooseModel(name, schemaFactory) {
-  try {
-    const mongoose = require("mongoose");
-    if (mongoose.connection.readyState !== 1) return null;
-    if (mongoose.models[name]) return mongoose.models[name];
-    return mongoose.model(name, schemaFactory(mongoose));
-  } catch {
-    return null;
-  }
-}
-
-function settingsModel() {
-  return getMongooseModel("SoezyAutomodSetting", mongoose => new mongoose.Schema({
-    guildId: { type: String, unique: true, index: true },
-    config: { type: Object, default: {} },
-  }, { timestamps: true, strict: false }));
-}
-
-function violationModel() {
-  return getMongooseModel("SoezyAutomodViolation", mongoose => {
-    const schema = new mongoose.Schema({
-      guildId: { type: String, index: true },
-      userId: { type: String, index: true },
-      type: { type: String, index: true },
-      count: { type: Number, default: 0 },
-      lastReason: String,
-      lastAction: String,
-      lastMessageId: String,
-      lastChannelId: String,
-      metadata: { type: Object, default: {} },
-    }, { timestamps: true, strict: false });
-    schema.index({ guildId: 1, userId: 1, type: 1 }, { unique: true });
-    return schema;
-  });
-}
-
-async function syncSettings(guildId, cfg) {
-  const model = settingsModel();
-  if (!model) return;
-  await model.updateOne({ guildId }, { $set: { config: cfg } }, { upsert: true }).catch(() => {});
-}
-
 async function recordViolation(message, detection, action, deps = {}) {
   const guildId = message.guildId;
   const userId = message.author.id;
-  const model = violationModel();
-
-  if (model) {
-    const doc = await model.findOneAndUpdate(
-      { guildId, userId, type: detection.type },
-      {
-        $inc: { count: 1 },
-        $set: {
-          lastReason: detection.reason,
-          lastAction: action,
-          lastMessageId: message.id,
-          lastChannelId: message.channelId,
-          metadata: { indicators: detection.indicators || [] },
-        },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    ).catch(() => null);
-    if (doc?.count) return doc.count;
-  }
 
   const cfg = ensureConfig(guildId, deps);
   cfg.violations[userId] ||= {};
@@ -500,14 +439,12 @@ async function setFeature(guildId, feature, enabled, deps = {}) {
     gd.antilink.enabled = Boolean(enabled);
     syncSavedProtectionPreferences(gd);
     save(deps);
-    await syncSettings(guildId, cfg);
     return cfg;
   }
   cfg[key] ||= {};
   cfg[key].enabled = Boolean(enabled);
   syncSavedProtectionPreferences(gd);
   save(deps);
-  await syncSettings(guildId, cfg);
   return cfg;
 }
 
@@ -531,7 +468,6 @@ async function setPunishment(guildId, punishment, deps = {}) {
   const cfg = ensureConfig(guildId, deps);
   cfg.punishment = action;
   save(deps);
-  await syncSettings(guildId, cfg);
   return cfg;
 }
 
@@ -542,7 +478,6 @@ async function setLogChannel(guildId, channelId, deps = {}) {
   gd.nativeAutomod ||= { ruleIds: {}, keywords: [], alertChannelId: null };
   gd.nativeAutomod.alertChannelId = channelId || null;
   save(deps);
-  await syncSettings(guildId, cfg);
   return cfg;
 }
 
@@ -555,7 +490,6 @@ async function setAllowedDomain(guildId, domain, deps = {}) {
   if (!domains.includes(normalized)) domains.push(normalized);
   linkConfig.allowedDomains = domains;
   save(deps);
-  await syncSettings(guildId, cfg);
   return linkConfig;
 }
 
@@ -566,7 +500,6 @@ async function removeAllowedDomain(guildId, domain, deps = {}) {
   const linkConfig = getGuildData(guildId, deps).automod.antiLink;
   linkConfig.allowedDomains = unique(linkConfig.allowedDomains || []).filter(item => item !== normalized);
   save(deps);
-  await syncSettings(guildId, cfg);
   return linkConfig;
 }
 
@@ -576,7 +509,6 @@ async function addWhitelistRole(guildId, roleId, deps = {}) {
   gd.automodWhitelistRoles = gd.automodImmuneRoles = unique([...(gd.automodImmuneRoles || []), roleId]);
   gd.automod.whitelistRoles = gd.automod.immuneRoles = gd.automodImmuneRoles;
   save(deps);
-  await syncSettings(guildId, gd.automod.advanced);
   return gd.automodImmuneRoles;
 }
 
@@ -586,7 +518,6 @@ async function addWhitelistChannel(guildId, channelId, deps = {}) {
   gd.automodWhitelistChannels = gd.automodImmuneChannels = unique([...(gd.automodImmuneChannels || []), channelId]);
   gd.automod.whitelistChannels = gd.automod.immuneChannels = gd.automodImmuneChannels;
   save(deps);
-  await syncSettings(guildId, gd.automod.advanced);
   return gd.automodImmuneChannels;
 }
 

@@ -18,7 +18,7 @@ function harness() {
   const guild = { id: "123456789012345678", client: {} };
   const features = ["antiPhishing", "antiCaps", "antiZalgo", "antiDuplicate", "antiEveryoneBP", "webhookGuard"];
   const ctx = vm.createContext({
-    console, db: {}, guildData: () => gd,
+    console, require: id => require(path.resolve(__dirname, "..", id)), db: {}, guildData: () => gd,
     saveDB: () => saved.push(JSON.parse(JSON.stringify(gd))),
     ensureAutomodLogChannel: async () => { calls.push("logs"); return { id: "logs", delete: () => assert.fail("must keep logs") }; },
     setFeatureState: (_id, key, enabled) => {
@@ -47,7 +47,7 @@ function harness() {
   return { gd, calls, saved, guild, ctx, features, configure: enabled => ctx.configureAutomodSystem(guild, enabled) };
 }
 
-test("AutoMod parent toggle preserves each saved protection preference", async () => {
+test("AutoMod disable clears protections and enable does not turn them back on", async () => {
   const h = harness();
   const savedPreferences = JSON.parse(JSON.stringify({
     automod: h.gd.automod.features,
@@ -71,17 +71,21 @@ test("AutoMod parent toggle preserves each saved protection preference", async (
   assert.equal(synced.accountAge.enabled, true);
   await h.configure(false);
   assert.equal(h.gd.automod.enabled, false);
-  assert.equal(h.gd.antibot.enabled, savedPreferences.antibot);
-  assert.equal(h.gd.automod.antiLink.enabled, savedPreferences.antiLink);
-  assert.equal(h.gd.badWordEnabled, savedPreferences.badWord);
-  assert.equal(h.gd.nsfwProtection, savedPreferences.nsfw);
-  assert.equal(h.gd.accountAge.enabled, savedPreferences.accountAge);
-  for (const feature of h.features) assert.equal(h.gd.security[feature], savedPreferences.securityFeatures[feature], feature);
-  assert.deepEqual(h.gd.automod.features, savedPreferences.automod);
+  assert.equal(h.gd.antibot.enabled, false);
+  assert.equal(h.gd.automod.antiLink.enabled, false);
+  assert.equal(h.gd.badWordEnabled, false);
+  assert.equal(h.gd.nsfwProtection, false);
+  assert.equal(h.gd.accountAge.enabled, false);
+  for (const feature of h.features) assert.equal(h.gd.security[feature], false, feature);
+  for (const feature of Object.values(h.gd.automod.features)) assert.equal(feature.enabled, false);
   assert.equal(h.calls.at(-1).nativeEnabled, false);
   assert.equal(h.saved.at(-1).automod.enabled, false);
   await h.configure(true);
   assert.equal(h.gd.accountAge.minDays, 14);
+  assert.equal(h.gd.security.savedAccountAgeDays, 14);
+  assert.equal(h.gd.security.accountAgeDays, 0);
+  assert.equal(h.gd.automod.antiSpam.enabled, false);
+  assert.equal(h.gd.antibot.enabled, false);
 });
 
 test("failed enable leaves saved protections disabled without deleting infrastructure", async () => {
@@ -105,8 +109,8 @@ test("disable saves local state even if Discord rules cannot be synchronized", a
   };
   await assert.rejects(h.configure(false), /unavailable/);
   assert.equal(h.saved.at(-1).automod.enabled, false);
-  assert.equal(h.saved.at(-1).antibot.enabled, true);
-  assert.equal(h.saved.at(-1).accountAge.enabled, true);
+  assert.equal(h.saved.at(-1).antibot.enabled, false);
+  assert.equal(h.saved.at(-1).accountAge.enabled, false);
   assert.equal(h.calls.at(-1).nativeEnabled, false);
 });
 

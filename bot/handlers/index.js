@@ -6,7 +6,7 @@ const { createRequire } = require("module");
 const rootDir = path.resolve(__dirname, "..");
 const rootRequire = createRequire(path.join(rootDir, "index.js"));
 require("dotenv").config({ path: path.join(rootDir, ".env") });
-require("dotenv").config({ path: path.join(rootDir, "deployment", "dashboard-bridge.env") });
+require("dotenv").config({ path: path.join(rootDir, "deployment", "dashboard-supabase.env") });
 const { loadLavalinkEnvironment, logLavalinkEnvironment } = require("../utils/lavalinkConfig");
 logLavalinkEnvironment(loadLavalinkEnvironment());
 const runtimeRoot = typeof process !== "undefined" ? process : globalThis;
@@ -142,24 +142,38 @@ async function start() {
   if (skipped > 0) console.warn(`[BOOT] Duplicate listener/handler skips: ${skipped}`);
   console.log("[BOOT] All files loaded. Bot is now connecting to Discord...");
 
-  if (process.env.SOEZY_DASHBOARD_API_SECRET) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (supabaseUrl && supabaseServiceKey && !process.__soezyDashboardSupabaseWorker) {
     try {
       const client = process.__soezyDiscordClient || sandbox.client || globalThis.client;
       if (!client) throw new Error("Discord client is not initialized");
       const { createBotBridge } = require("../utils/dashboardRuntime");
-      const { createDashboardApi } = require("../utils/dashboardApi");
       const bridge = createBotBridge({ config: { bot: { dir: rootDir, getClient: () => client, onConfigUpdated: async (id, applied) => {
         const guild = client.guilds.cache.get(id);
-        if (guild && Object.keys(applied).some(key => /^(automod|security|badWord|nsfw|accountAge|antibot|antilink)/.test(key))) {
-          await sandbox.soezyNativeAutomod.syncFilters(guild, sandbox.soezyNativeAutomodDeps);
+        if (!Object.keys(applied || {}).some(key => /^(automod|security|badWord|nsfw|accountAge|antibot|antilink)/.test(key))) return null;
+        if (!guild || typeof sandbox?.soezyNativeAutomod?.syncFilters !== "function") {
+          return { nativeAutomodSync: { status: "pending", message: "Settings were saved, but the bot is not connected to this server yet; Discord AutoMod rules have not synchronized." } };
         }
+        const ruleCount = await sandbox.soezyNativeAutomod.syncFilters(guild, sandbox.soezyNativeAutomodDeps);
+        return { nativeAutomodSync: { status: "synced", ruleCount, message: "Discord AutoMod rules are synchronized." } };
+      }, onCommunityUpdated: async (id, module) => {
+        if (module === "autoresponder" || module === "autoreact") sandbox.refreshRuntime(id, module);
       } } } });
-      const api = createDashboardApi({ bridge, client, secret: process.env.SOEZY_DASHBOARD_API_SECRET, port: Number(process.env.SOEZY_DASHBOARD_API_PORT || 4760) });
-      await api.start();
-      console.log("[DASHBOARD] Private configuration API listening on loopback.");
+      const { createClient } = require("@supabase/supabase-js");
+      const { createDashboardSupabaseWorker } = require("../utils/dashboardSupabaseWorker");
+      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+      });
+      const worker = createDashboardSupabaseWorker({ bridge, client, supabase });
+      await worker.start();
+      process.__soezyDashboardSupabaseWorker = worker;
+      console.log("[DASHBOARD] Supabase bridge worker started; publishing bot status and processing dashboard requests.");
     } catch (error) {
-      console.error("[DASHBOARD] Private API failed to start:", error.message);
+      console.error("[DASHBOARD] Supabase bridge failed to start:", error.message);
     }
+  } else if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn("[DASHBOARD] Supabase bridge is disabled; set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   }
 }
 

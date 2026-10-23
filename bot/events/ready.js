@@ -62,23 +62,43 @@ async function repairDisabledTicketPanels(client) {
   return repaired;
 }
 
-function updateMemberCountStreamingPresence() {
+function updateMemberCountStreamingPresence(configuredPresence = db.botPresence) {
   if (!client.isReady()) return;
-  const memberCount = client.guilds.cache.reduce((total, guild) => {
-    const count = Number(guild.memberCount);
-    return total + (Number.isFinite(count) && count > 0 ? count : 0);
-  }, 0);
-  if (globalThis.__soezyStreamingMemberCount === memberCount) return;
-  client.user.setPresence({
-    status: "online",
-    activities: [{
-      name: `with ${memberCount.toLocaleString("en-US")} members!`,
-      type: ActivityType.Streaming,
-      url: "https://www.twitch.tv/youknowntg",
-    }],
-  });
-  globalThis.__soezyStreamingMemberCount = memberCount;
+  let presence;
+  if (configuredPresence && typeof configuredPresence.message === "string" && configuredPresence.message.trim()) {
+    const activityTypes = {
+      Playing: ActivityType.Playing,
+      Watching: ActivityType.Watching,
+      Listening: ActivityType.Listening,
+      Competing: ActivityType.Competing,
+    };
+    presence = {
+      status: ["online", "idle", "dnd"].includes(configuredPresence.status) ? configuredPresence.status : "online",
+      activities: [{
+        name: configuredPresence.message.slice(0, 128),
+        type: activityTypes[configuredPresence.activityType] ?? ActivityType.Playing,
+      }],
+    };
+  } else {
+    const memberCount = client.guilds.cache.reduce((total, guild) => {
+      const count = Number(guild.memberCount);
+      return total + (Number.isFinite(count) && count > 0 ? count : 0);
+    }, 0);
+    presence = {
+      status: "online",
+      activities: [{
+        name: "with " + memberCount.toLocaleString("en-US") + " members!",
+        type: ActivityType.Streaming,
+        url: "https://www.twitch.tv/youknowntg",
+      }],
+    };
+  }
+  const signature = JSON.stringify(presence);
+  if (globalThis.__soezyPresenceSignature === signature) return;
+  client.user.setPresence(presence);
+  globalThis.__soezyPresenceSignature = signature;
 }
+globalThis.__soezyApplyBotPresence = updateMemberCountStreamingPresence
 
 client.once("clientReady", async () => {
   console.log(`\n${"═".repeat(50)}`);

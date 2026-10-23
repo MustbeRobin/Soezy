@@ -202,7 +202,7 @@ function schema(g) {
 }
 
 function dashboardUrl(guildId, section) {
-  const base = process.env.SOEZY_DASHBOARD_URL || process.env.WEB_PUBLIC_URL || "http://localhost:4754";
+  const base = process.env.SOEZY_DASHBOARD_URL || process.env.WEB_PUBLIC_URL || "https://soezy-dashboard.vercel.app";
   const url = new URL(`/dashboard/guild/${guildId}/${section}`, base);
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Invalid dashboard URL");
   return url.href;

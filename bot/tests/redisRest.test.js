@@ -34,3 +34,18 @@ test("Upstash REST adapter surfaces endpoint errors", async t => {
   const redis = new UpstashRestClient("https://example.upstash.io", "test-token");
   await assert.rejects(redis.ping(), /WRITER_LOCK_LOST/);
 });
+
+test("Upstash REST adapter propagates node-redis abortSignal options to fetch", async t => {
+  const originalFetch = global.fetch;
+  let receivedSignal;
+  global.fetch = async (_url, options) => {
+    receivedSignal = options.signal;
+    return new Response(JSON.stringify({ result: "PONG" }), { status: 200 });
+  };
+  t.after(() => { global.fetch = originalFetch; });
+
+  const redis = new UpstashRestClient("https://example.upstash.io", "test-token");
+  const controller = new AbortController();
+  await redis.withCommandOptions({ abortSignal: controller.signal }).ping();
+  assert.equal(receivedSignal, controller.signal);
+});

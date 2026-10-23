@@ -1,6 +1,7 @@
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const { performance } = require("node:perf_hooks");
 const { buildFilterRules, lengthPattern } = require("../utils/nativeFilterRules");
 const service = require("../utils/nativeAutomodService");
 
@@ -64,6 +65,29 @@ test("managed keyword rules stay inactive while AutoMod is off and return on par
   await service.syncFilters(h.guild, h.deps);
   assert.equal(rule.enabled, false);
   await assert.rejects(service.setRuleEnabled(h.guild, h.deps, rule.id, true), /AutoMod is disabled/);
+});
+
+test("explicit AutoMod disable keeps keyword and message-length rules off on re-enable", async () => {
+  const { disableAutoModFeatures } = require("../utils/securityDisableFeatures");
+  const h = filterHarness({ automod: { systemEnabled: true, enabled: true }, security: { messageLimit: 100, channelMaxLength: { channel: 200 } }, nativeAutomod: {} });
+  await service.addKeyword(h.guild, h.deps, "blocked phrase");
+  await service.syncFilters(h.guild, h.deps);
+  const rule = [...h.rules.values()].find(item => item.name.endsWith("Keywords"));
+  assert.equal(rule.enabled, true);
+  disableAutoModFeatures(h.gd);
+  h.gd.automod.systemEnabled = h.gd.automod.enabled = false;
+  await service.syncFilters(h.guild, h.deps);
+  h.gd.automod.systemEnabled = h.gd.automod.enabled = true;
+  await service.syncFilters(h.guild, h.deps);
+  assert.equal(rule.enabled, false);
+  assert.deepEqual(h.gd.nativeAutomod.keywords, ["blocked phrase"]);
+  assert.equal(h.gd.security.messageLimit, 100);
+  assert.deepEqual(h.gd.security.channelMaxLength, { channel: 200 });
+  assert.equal([...h.rules.values()].some(item => /Message Length/.test(item.name)), false);
+  await service.addKeyword(h.guild, h.deps, "another phrase");
+  assert.equal(rule.enabled, true);
+  await service.setMessageLimit(h.guild, h.deps, 100);
+  assert.equal(h.gd.security.messageLengthEnabled, true);
 });
 
 test("full setup with explicit block punishments covers every native trigger type", async () => {
@@ -322,4 +346,35 @@ test("security message limits enable native sync and share channel overrides", a
   assert.equal(h.gd.security.messageLimit, 100);
   await service.setMessageLimit(h.guild, h.deps, 0);
   assert.equal(h.rules.size, 0);
+});
+
+test("bounded burst of native AutoMod sync requests stays serialized per guild", async t => {
+  const requestCount = 120;
+  let fetchCount = 0;
+  let activeFetches = 0;
+  let maxActiveFetches = 0;
+  const gd = { automod: { enabled: false }, nativeAutomod: {} };
+  const guild = {
+    id: "native-sync-burst",
+    client: { user: { id: "bot" } },
+    autoModerationRules: {
+      fetch: async () => {
+        fetchCount++;
+        activeFetches++;
+        maxActiveFetches = Math.max(maxActiveFetches, activeFetches);
+        await new Promise(resolve => setImmediate(resolve));
+        activeFetches--;
+        return new Map();
+      }
+    }
+  };
+  const deps = { guildData: () => gd, saveDB() {} };
+  const started = performance.now();
+  await Promise.all(Array.from({ length: requestCount }, () => service.syncFilters(guild, deps)));
+  const elapsedMs = performance.now() - started;
+
+  assert.equal(fetchCount, requestCount);
+  assert.equal(maxActiveFetches, 1);
+  assert.equal(activeFetches, 0);
+  t.diagnostic(JSON.stringify({ requests: requestCount, concurrency: requestCount, maxDiscordOperationsPerGuild: maxActiveFetches, elapsedMs: Number(elapsedMs.toFixed(2)), discord: "mock API" }));
 });

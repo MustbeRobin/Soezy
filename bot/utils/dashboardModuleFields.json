@@ -1,0 +1,645 @@
+[
+  {
+    "module": "welcome",
+    "path": "welcome.enabled",
+    "label": "Enable Welcome",
+    "type": "boolean",
+    "default": false,
+    "extension": false
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.embedEnabled",
+    "label": "Use embed style",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.dmEnabled",
+    "label": "Send welcome DM",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.channel",
+    "label": "Welcome channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.title",
+    "label": "Outside message / heading",
+    "type": "text",
+    "default": "",
+    "extension": false,
+    "maxLength": 2000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.message",
+    "label": "Welcome message",
+    "type": "textarea",
+    "default": "Welcome {user} to {server}!",
+    "extension": false,
+    "maxLength": 2000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.color",
+    "label": "Embed colour",
+    "type": "color",
+    "default": "",
+    "extension": false,
+    "maxLength": 7
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.image",
+    "label": "Banner image URL",
+    "type": "url",
+    "default": "",
+    "extension": false,
+    "maxLength": 1000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.thumbnail",
+    "label": "Thumbnail URL",
+    "type": "url",
+    "default": "",
+    "extension": true,
+    "maxLength": 1000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.footer",
+    "label": "Footer text",
+    "type": "text",
+    "default": "",
+    "extension": false,
+    "maxLength": 256
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.footerIcon",
+    "label": "Footer icon URL",
+    "type": "url",
+    "default": "",
+    "extension": true,
+    "maxLength": 1000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.authorText",
+    "label": "Author name",
+    "type": "text",
+    "default": "",
+    "extension": true,
+    "maxLength": 256
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.authorIcon",
+    "label": "Author icon URL",
+    "type": "url",
+    "default": "",
+    "extension": true,
+    "maxLength": 1000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.dmMessage",
+    "label": "Welcome DM message",
+    "type": "textarea",
+    "default": "",
+    "extension": true,
+    "maxLength": 2000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.dmFooter",
+    "label": "DM footer",
+    "type": "text",
+    "default": "",
+    "extension": true,
+    "maxLength": 256
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.dmImage",
+    "label": "DM image URL",
+    "type": "url",
+    "default": "",
+    "extension": true,
+    "maxLength": 1000
+  },
+  {
+    "module": "welcome",
+    "path": "welcome.deleteDelayMs",
+    "label": "Auto-delete delay (milliseconds; 0 = off)",
+    "type": "number",
+    "default": 0,
+    "extension": true,
+    "min": 0,
+    "max": 2147000000,
+    "step": 1000
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.enabled",
+    "label": "Enable Tickets",
+    "type": "boolean",
+    "default": false,
+    "extension": false
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.autoClose",
+    "label": "Auto-close tickets",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.dmOnClose",
+    "label": "DM member when ticket closes",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.channel",
+    "label": "Panel channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.category",
+    "label": "Ticket category ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.supportRole",
+    "label": "Primary support role ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.transcriptChannel",
+    "label": "Transcript channel ID",
+    "type": "id",
+    "default": "",
+    "extension": true,
+    "maxLength": 25
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.logs",
+    "label": "Ticket log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": true,
+    "maxLength": 25
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.maxTickets",
+    "label": "Maximum tickets per user (free plan: 1\u20135)",
+    "type": "number",
+    "default": 5,
+    "extension": false,
+    "min": 1,
+    "max": 5
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.buttonLabel",
+    "label": "Create-ticket button label",
+    "type": "text",
+    "default": "Create Ticket",
+    "extension": true,
+    "maxLength": 80
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.embed.title",
+    "label": "Panel title",
+    "type": "text",
+    "default": "",
+    "extension": true,
+    "maxLength": 256
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.embed.description",
+    "label": "Panel message",
+    "type": "textarea",
+    "default": "",
+    "extension": true,
+    "maxLength": 2000
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.embed.footer",
+    "label": "Panel footer",
+    "type": "text",
+    "default": "",
+    "extension": true,
+    "maxLength": 256
+  },
+  {
+    "module": "tickets",
+    "path": "ticket.embed.color",
+    "label": "Legacy panel accent (stored; current Components V2 panel ignores this)",
+    "type": "color",
+    "default": "",
+    "extension": true,
+    "maxLength": 7
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.message",
+    "label": "Message log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.moderation",
+    "label": "Moderation log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.joinLeave",
+    "label": "Joinleave log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.invite",
+    "label": "Invite log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.voice",
+    "label": "Voice log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.action",
+    "label": "Action log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.channels.admin",
+    "label": "Admin log channel ID",
+    "type": "id",
+    "default": "",
+    "extension": false,
+    "maxLength": 25
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.messageDelete",
+    "label": "Message Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.messageEdit",
+    "label": "Message Edit",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberJoin",
+    "label": "Member Join",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberLeave",
+    "label": "Member Leave",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberUpdate",
+    "label": "Member Update",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberBan",
+    "label": "Member Ban",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberUnban",
+    "label": "Member Unban",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberKick",
+    "label": "Member Kick",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberMute",
+    "label": "Member Mute",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberUnmute",
+    "label": "Member Unmute",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.memberWarn",
+    "label": "Member Warn",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.roleCreate",
+    "label": "Role Create",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.roleDelete",
+    "label": "Role Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.roleUpdate",
+    "label": "Role Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.channelCreate",
+    "label": "Channel Create",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.channelDelete",
+    "label": "Channel Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": false
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.channelUpdate",
+    "label": "Channel Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.voiceJoin",
+    "label": "Voice Join",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.voiceLeave",
+    "label": "Voice Leave",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.voiceMove",
+    "label": "Voice Move",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.inviteCreate",
+    "label": "Invite Create",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.inviteDelete",
+    "label": "Invite Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.emojiCreate",
+    "label": "Emoji Create",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.emojiDelete",
+    "label": "Emoji Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.emojiUpdate",
+    "label": "Emoji Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.stickerCreate",
+    "label": "Sticker Create",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.stickerDelete",
+    "label": "Sticker Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.stickerUpdate",
+    "label": "Sticker Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.webhookCreate",
+    "label": "Webhook Create",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.webhookDelete",
+    "label": "Webhook Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.webhookUpdate",
+    "label": "Webhook Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.autoModerationRuleCreate",
+    "label": "Auto Moderation Rule Create",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.autoModerationRuleDelete",
+    "label": "Auto Moderation Rule Delete",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.autoModerationRuleUpdate",
+    "label": "Auto Moderation Rule Update",
+    "type": "boolean",
+    "default": false,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.autoModerationActionExecution",
+    "label": "Auto Moderation Action Execution",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.nicknameChange",
+    "label": "Nickname Change",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.guildUpdate",
+    "label": "Guild Update",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  },
+  {
+    "module": "logging",
+    "path": "logging.events.infect",
+    "label": "Infect",
+    "type": "boolean",
+    "default": true,
+    "extension": true
+  }
+]

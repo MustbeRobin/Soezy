@@ -411,6 +411,7 @@ async function wallDisableCleanup(guild, options = {}) {
   // Disabling stops new enforcement; resources and existing jail records stay intact.
   ws.enabled = false;
   ws.systemEnabled = false;
+  require("./utils/securityDisableFeatures").disableWallFeatures(gd);
   gd.wall ||= {};
   gd.wall.enabled = false;
   wallSaveAndSync(guildId, "wall_disable");

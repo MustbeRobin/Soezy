@@ -1222,6 +1222,9 @@ setInterval(() => {
   }
 }, 30000);
 
+client._dashboardRefreshSticky = updateStickyMessage;
+client._dashboardHasPremium = (userId, guildId) => hasAnyPremium(userId, guildId);
+
 // Spam Tracker Cleanup Timer
 setInterval(() => {
   const now = Date.now();

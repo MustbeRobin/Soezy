@@ -60,6 +60,10 @@ async function upsertKeywordRule(guild, state, gd = {}) {
   if (!parentEnabled) return { operation: "deferred", rule: null };
   const keywords = state.keywords;
   const existing = await getManagedRule(guild, state, "keywords");
+  if (state.keywordsEnabled === false) {
+    if (existing?.enabled) await existing.edit({ enabled: false, reason: "Soezy AutoMod keyword protection disabled" });
+    return { operation: "disabled", rule: existing };
+  }
   const payload = {
     name: `${MANAGED_PREFIX} Keywords`,
     eventType: AutoModerationRuleEventType.MessageSend,
@@ -117,6 +121,7 @@ async function addKeyword(guild, deps, keyword) {
   const state = nativeState(deps.guildData, guild.id);
   if (state.keywords.length >= MAX_KEYWORDS && !state.keywords.includes(value)) throw new Error("The managed keyword list is full.");
   if (!state.keywords.includes(value)) state.keywords.push(value);
+  state.keywordsEnabled = true;
   const gd = deps.guildData(guild.id);
   if (!((typeof gd.automod?.systemEnabled === "boolean" ? gd.automod.systemEnabled : gd.automod?.enabled) === true)) {
     await setManagedRulesEnabled(guild, deps, false);
@@ -234,6 +239,7 @@ function setMessageLimit(guild, deps, value, channelId = null) {
   const limit = Number(value);
   if (!Number.isInteger(limit) || limit < 0 || limit > 4000) throw new Error("Use a whole number from 1 to 4000, or 0 to remove the limit.");
   const security = { ...deps.guildData(guild.id).security };
+  if (limit) security.messageLengthEnabled = true;
   if (channelId) {
     security.channelMaxLength = { ...security.channelMaxLength };
     if (limit) security.channelMaxLength[channelId] = limit;
@@ -271,6 +277,7 @@ async function setRuleEnabled(guild, deps, ruleId, enabled) {
     throw new Error("Use the feature's own command or configuration panel to change this rule (antilink, antimention, badword, nsfw, or security).");
   }
   const updated = await rule.edit({ enabled: Boolean(enabled), reason: `Soezy native AutoMod rule ${enabled ? "enabled" : "disabled"}` });
+  if (state.ruleIds.keywords === id) state.keywordsEnabled = Boolean(enabled);
   deps.saveDB?.();
   return updated;
 }

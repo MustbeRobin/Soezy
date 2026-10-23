@@ -21,6 +21,10 @@ const ALL_COMMANDS = {
     name: "Moderation",
     description: "Server moderation commands",
     commands: [
+      { name: "casehistory", description: "View moderation case history for a user", usage: "casehistory <@user>", aliases: ["cases"] },
+      { name: "modstats", description: "View server or moderator statistics", usage: "modstats [@moderator]", aliases: [] },
+      { name: "send message", description: "Send a message through the bot (administrators only)", usage: "send message <text>", aliases: [] },
+      { name: "send image", description: "Send an image through the bot (administrators only)", usage: "send image <url>", aliases: [] },
       { name: "extraowner add", description: "Bot owner only: delegate protected-system access in this server", usage: "extraowner add @user", aliases: ["eo add"] },
       { name: "extraowner remove", description: "Bot owner only: revoke protected-system access", usage: "extraowner remove @user", aliases: ["eo remove"] },
       { name: "extraowner edit", description: "Bot owner only: replace a server ExtraOwner", usage: "extraowner edit @old @new", aliases: ["eo edit"] },
@@ -128,12 +132,12 @@ const ALL_COMMANDS = {
     commands: [
       //  Auto-Mod 
       { name: "automod config", description: "Configure message filters, security protections, and logging", usage: "automod config", aliases: ["automod"] },
+      { name: "automod enable", description: "Enable AutoMod protection", usage: "automod enable", aliases: ["am enable", "automode enable"] },
+      { name: "automod disable", description: "Disable AutoMod protection", usage: "automod disable", aliases: ["am disable", "automode disable"] },
       { name: "badword", description: "Manage custom words; configure the filter in AutoMod", usage: "badword <add|remove|list|enable|disable>", aliases: ["bw"] },
       { name: "nsfw", description: "Manage custom NSFW words; configure the filter in AutoMod", usage: "nsfw <add|remove|list|enable|disable>", aliases: [] },
       { name: "antimention", description: "Configure native mention blocking", usage: "antimention <enable|disable|status>", aliases: [] },
       { name: "antimention limit", description: "Set the number of mentions allowed before blocking", usage: "antimention limit <1-50>", aliases: [] },
-      { name: "antilink enable", description: "Enable anti-link", usage: "antilink enable", aliases: ["antinlink enable", "antinlinl enable"] },
-      { name: "antilink disable", description: "Disable anti-link", usage: "antilink disable", aliases: ["antinlink disable", "antinlinl disable"] },
     ]
   },
 
@@ -237,7 +241,7 @@ const ALL_COMMANDS = {
       { name: "howugly", description: "Check ugly energy", usage: "howugly [@user]", aliases: ["uglyrate"] },
       { name: "hownigga", description: "Check n-word energy", usage: "hownigga [@user]", aliases: ["niggarate"] },
       { name: "simpcheck", description: "Check simp levels", usage: "simpcheck [@user]", aliases: [] },
-      { name: "lovemeter", description: "Measure love compatibility", usage: "lovemeter <@user>", aliases: ["love"] },
+      { name: "lovemeter", description: "Measure love compatibility", usage: "lovemeter <@user>", aliases: ["love", "loverate"] },
       { name: "joke", description: "Get a random joke", usage: "joke", aliases: [] },
       { name: "fact", description: "Get a random fact", usage: "fact", aliases: [] },
       { name: "quote", description: "Get a random quote", usage: "quote", aliases: [] },
@@ -248,6 +252,12 @@ const ALL_COMMANDS = {
 
       // Roleplay commands with targets
       { name: "hug", description: "Hug someone", usage: "hug <@user>", aliases: [] },
+      { name: "horny", description: "Send an anime reaction GIF", usage: "horny [@user]", aliases: [] },
+      { name: "kidnap", description: "Send a playful anime reaction GIF", usage: "kidnap [@user]", aliases: [] },
+      { name: "blushkiss", description: "Send a blush-kiss reaction", usage: "blushkiss [@user]", aliases: [] },
+      { name: "instantkiss", description: "Send an instant kiss reaction", usage: "instantkiss [@user]", aliases: [] },
+      { name: "instanthug", description: "Send an instant hug reaction", usage: "instanthug [@user]", aliases: [] },
+      { name: "instantslap", description: "Send an instant slap reaction", usage: "instantslap [@user]", aliases: [] },
       { name: "kiss", description: "Kiss someone", usage: "kiss <@user>", aliases: [] },
       { name: "peck", description: "Give someone a cute cheek kiss", usage: "peck <@user>", aliases: [] },
       { name: "pat", description: "Pat someone", usage: "pat <@user>", aliases: ["headpat"] },
@@ -543,6 +553,10 @@ const ALL_COMMANDS = {
     description: "AFK, Confessions, Boost, Birthday, Emoji & Sticky",
     commands: [
       //  AFK 
+      { name: "invite", description: "Get the bot invite and support links", usage: "invite", aliases: ["botinvite", "bi"] },
+      { name: "economy config", description: "Open economy settings", usage: "economy config", aliases: ["eco config"] },
+      { name: "daily", description: "Claim your daily reward", usage: "daily", aliases: [] },
+      { name: "work", description: "Work to earn coins", usage: "work", aliases: [] },
       { name: "afk", description: "Set AFK status (server only)", usage: "afk [reason]", aliases: [] },
       { name: "afk global", description: "Set global AFK status (all servers)", usage: "afk global [reason]", aliases: ["gafk", "gafkon", "gafkoff"] },
       { name: "afk server", description: "Set server-specific AFK status", usage: "afk server [reason]", aliases: ["safk", "safkon", "safkoff"] },
@@ -724,13 +738,14 @@ const ALL_COMMANDS = {
       { name: "botset avatar", description: "Set server-specific bot avatar", usage: "botset avatar <url>", aliases: ["setavatar"] },
       { name: "botset banner", description: "Set server-specific bot banner", usage: "botset banner <url>", aliases: ["setbanner"] },
       { name: "botset reset", description: "Reset all bot identity settings", usage: "botset reset", aliases: [] },
+      { name: "botset status", description: "Set or reset the bot's global activity and online state (bot owner only)", usage: "botset status [online|idle|dnd] [type] <message> | botset status reset", aliases: [] },
       //  Utility 
       { name: "help", description: "Show help menu with security check", usage: "help [command]", aliases: ["h", "commands"] },
       { name: "ping", description: "Check bot latency", usage: "ping", aliases: ["latency"] },
       { name: "avatar", description: "Get user server avatar, falling back to global", usage: "avatar [@user]", aliases: ["av", "pfp"] },
       { name: "globalavatar", description: "Get user global avatar", usage: "globalavatar [@user]", aliases: ["gav"] },
       { name: "banner", description: "Get user server banner, falling back to global", usage: "banner [@user]", aliases: ["bann", "bn"] },
-      { name: "globalbanner", description: "Get user global banner", usage: "globalbanner [@user]", aliases: ["gbn"] },
+      { name: "globalbanner", description: "Get user global banner", usage: "globalbanner [@user]", aliases: ["gbn", "gbanner"] },
       { name: "userinfo", description: "Get user info", usage: "userinfo [@user]", aliases: ["ui", "whois", "user"] },
       { name: "serverinfo", description: "Get server info", usage: "serverinfo", aliases: ["si", "server", "guild"] },
       { name: "addrole", description: "Add a role to a user, bot, all users, or all bots", usage: "addrole <@user/@bot / all user / all bot> @role", aliases: ["ar"] },
@@ -784,6 +799,26 @@ const ALL_COMMANDS = {
       { name: "premium status", description: "Check your premium status", usage: "premium status", aliases: ["premium check", "prem status"] },
       { name: "premium plans", description: "View all premium plans", usage: "premium plans", aliases: ["premium info", "prem plans"] },
       { name: "premium bio", description: "View or customize this server's premium bio preview", usage: "premium bio [set <text>|reset]", aliases: ["prem bio"] },
+      { name: "premium raidmode", description: "Configure join-burst raid protection", usage: "premium raidmode <on [joins] [seconds] [kick|ban]|off|status>", aliases: ["prem raidmode"] },
+      { name: "premium roleguard", description: "Monitor role creation, deletion and dangerous permission changes", usage: "premium roleguard <on|off|status>", aliases: ["prem roleguard"] },
+      { name: "premium webhookguard", description: "Enable webhook change detection and Anti-Nuke events", usage: "premium webhookguard <on|off|status>", aliases: ["prem webhookguard"] },
+      { name: "premium botguard", description: "Block unauthorized bot joins using the Anti-Bot allowlist", usage: "premium botguard <on [kick|ban]|off|status>", aliases: ["prem botguard"] },
+      { name: "premium joinshield", description: "Set minimum account age and join punishment", usage: "premium joinshield <on [days] [kick|ban]|off|status>", aliases: ["prem joinshield"] },
+      { name: "premium actionlog", description: "Read recent server audit events", usage: "premium actionlog [1-20]", aliases: ["prem actionlog"] },
+      { name: "premium alertrole", description: "Set or remove the role included in security alerts", usage: "premium alertrole <set @role|off|status>", aliases: ["prem alertrole"] },
+      { name: "premium trustscore", description: "Calculate a member activity score from recent audit events", usage: "premium trustscore @member | set <event> <1-100>", aliases: ["prem trustscore"] },
+      { name: "premium restore", description: "Preview, capture, or owner-confirm server snapshot recovery", usage: "premium restore [snapshot|confirm <code>]", aliases: ["prem restore"] },
+      { name: "premium panic", description: "Raise verification to the highest level during an emergency", usage: "premium panic <on|off|status>", aliases: ["prem panic"] },
+      { name: "premium workflow create", description: "Create an allowlisted event-based automation", usage: "premium workflow create <event> | <action> | <text>", aliases: ["prem workflow create"] },
+      { name: "premium workflow list", description: "List saved automations", usage: "premium workflow list", aliases: ["prem workflow list"] },
+      { name: "premium workflow pause", description: "Pause or resume an automation", usage: "premium workflow <pause|resume> <id>", aliases: ["prem workflow pause"] },
+      { name: "premium workflow test", description: "Dry-run a workflow without sending or changing anything", usage: "premium workflow test <id>", aliases: ["prem workflow test"] },
+      { name: "premium autorole condition", description: "Assign a role to members who match an account-age or member-type condition", usage: "premium autorole condition <add @role human|bot|age>=days|remove @role|list>", aliases: ["prem autorole condition"] },
+      { name: "premium autothread", description: "Create a discussion thread for each human post in a selected channel", usage: "premium autothread <set #channel [name]|off|status>", aliases: ["prem autothread"] },
+      { name: "premium autoping", description: "Schedule reminders that mention one configured role", usage: "premium autoping <add @role #channel <hours> | <message>|list|remove <id>>", aliases: ["prem autoping"] },
+      { name: "premium cleanup", description: "Schedule cleanup for bot-authored, unpinned posts only", usage: "premium cleanup <set #channel <age-hours>|off #channel|list>", aliases: ["prem cleanup"] },
+      { name: "premium autoreplypro", description: "Add a conditional autoresponse with channel, role and cooldown rules", usage: "premium autoreplypro <add trigger | reply | cooldown=60 [| channel=#channel | role=@role]|list|remove trigger>", aliases: ["prem autoreplypro"] },
+      { name: "premium welcome test", description: "Preview the configured welcome message without sending a join event", usage: "premium welcome test", aliases: ["prem welcome test"] },
       { name: "premium channel create", description: " Create a hidden text channel (premium users + owner only)", usage: "premium channel create [name]", aliases: ["prem channel create"] },
       { name: "premium vc create", description: " Create a hidden voice channel (premium users + owner only)", usage: "premium vc create [name]", aliases: ["prem vc create"] },
       { name: "premium role set", description: " Set the server's premium role (server owner only)", usage: "premium role set <@role>", aliases: ["prem role set"] },
@@ -814,6 +849,7 @@ const ALL_COMMANDS = {
     description: "Bot owner & Soezy dev exclusive commands",
     commands: [
       //  Bot Management 
+      { name: "clearpoints", description: "Clear a user's developer or invite points (bot owner only)", usage: "clearpoints <@user> [dev|invite|all]", aliases: ["clearpts", "resetpoints", "resetpts"] },
       { name: "ownerhelp", description: "Open the owner command menu", usage: "ownerhelp", aliases: ["owner"] },
       { name: "botstats", description: "General, code, system and team stats", usage: "botstats", aliases: ["stats", "bstats"] },
       { name: "dev", description: "Manage the developer list shown in Team stats", usage: "dev <add/remove/list> [user]", aliases: [] },
@@ -847,7 +883,7 @@ const ALL_COMMANDS = {
       { name: "gbot avatar", description: "Change the bot's GLOBAL avatar", usage: "gbot avatar <url>", aliases: [] },
       { name: "gbot banner", description: "Change the bot's GLOBAL banner", usage: "gbot banner <url>", aliases: [] },
       { name: "gbot name", description: "Change the bot's GLOBAL username", usage: "gbot name <new name>", aliases: [] },
-      { name: "gbot status", description: "Set the bot's activity status", usage: "gbot status <playing/watching/listening> <text>", aliases: [] },
+      { name: "gbot status", description: "Set the bot's global activity status", usage: "gbot status <type> <text>", aliases: [] },
       //  Blacklist 
       { name: "blacklist", description: "Globally blacklist a user from the bot", usage: "blacklist @user [reason]", aliases: ["bl"] },
       { name: "unblacklist", description: "Remove a user from the global blacklist", usage: "unblacklist @user", aliases: ["unbl"] },
@@ -1238,7 +1274,7 @@ function buildMainHelpContainer(guildId, userId, member) {
         `${EMOJIS.loading || "<a:loading:1559133110472286298>"} **Links**\n` +
         `[Invite Me](https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands) | ` +
         `[Support Server](https://discord.gg/PJfTdSu95y) | ` +
-        `[Website](${process.env.PUBLIC_URL || "http://16.170.133.221"})`
+        `[Website](https://soezy-dashboard.vercel.app)`
       )
     )
     .addSeparatorComponents(sep => sep.setSpacing(SeparatorSpacingSize.Small).setDivider(true))
@@ -1336,7 +1372,6 @@ const MODULE_SECTIONS = {
     { marker: "automod config", header: "### AutoMod Settings" },
     { marker: "badword", header: "### Content Filters" },
     { marker: "antimention", header: "### Mention Protection" },
-    { marker: "antilink enable", header: "### Anti-Link" },
   ],
   welcome: [
     { marker: "welcome config", header: "### Welcome" },
@@ -1354,6 +1389,8 @@ const MODULE_SECTIONS = {
   ],
   premium_features: [
     { marker: "premium status", header: "### Premium Access" },
+    { marker: "premium raidmode", header: "### Security & Anti-Nuke" },
+    { marker: "premium workflow create", header: "### Automation" },
     { marker: "premium channel create", header: "### Server Perks & Roles" },
     { marker: "custombg", header: "### Personalization" },
     { marker: "premiumchannel", header: "### Exclusivity" },
@@ -1829,6 +1866,23 @@ const CMD_HELP_MAP = {
   // "premium role give"/"premium role remove" → moved to owner_only
   "premium status": "premium_features", "premium plans": "premium_features",
   "premium bio": "premium_features",
+  "premium raidmode": "premium_features", "prem raidmode": "premium_features",
+  "premium roleguard": "premium_features", "prem roleguard": "premium_features",
+  "premium webhookguard": "premium_features", "prem webhookguard": "premium_features",
+  "premium botguard": "premium_features", "prem botguard": "premium_features",
+  "premium joinshield": "premium_features", "prem joinshield": "premium_features",
+  "premium actionlog": "premium_features", "prem actionlog": "premium_features",
+  "premium alertrole": "premium_features", "prem alertrole": "premium_features",
+  "premium trustscore": "premium_features", "prem trustscore": "premium_features",
+  "premium restore": "premium_features", "prem restore": "premium_features",
+  "premium panic": "premium_features", "prem panic": "premium_features",
+  "premium workflow": "premium_features", "prem workflow": "premium_features",
+  "premium autorole": "premium_features", "prem autorole": "premium_features",
+  "premium autothread": "premium_features", "prem autothread": "premium_features",
+  "premium autoping": "premium_features", "prem autoping": "premium_features",
+  "premium cleanup": "premium_features", "prem cleanup": "premium_features",
+  "premium autoreplypro": "premium_features", "prem autoreplypro": "premium_features",
+  "premium welcome": "premium_features", "prem welcome": "premium_features",
   "premium help": "premium_features",
   "prem security": "antinuke", "prem help": "premium_features",
   "premium add": "owner_only", "premium remove": "owner_only", "premium list": "owner_only",
@@ -2539,21 +2593,24 @@ function buildAutomodConfigContainer(guildId, sessionId, user) {
   allOptions.push({ label: "Toggle Account Age Gate", description: "Enable or disable minimum account age", value: `amcfg_accountage_${sessionId}` });
   const featureActions = new Set(["antispam", "antimention", "anticaps", "antiinvite", "antilink", "antibot", "badwords", "nsfw", "advduplicate", "advscams", "accountage"]);
   const isFeature = option => featureActions.has(option.value.split("_")[1]);
-  const isWhitelist = option => /whitelist|bypass|trusted|domain/i.test(option.label + " " + option.description);
-  dropdown.addOptions(allOptions.filter(isFeature).slice(0, 25));
-  const whitelistMenu = new StringSelectMenuBuilder()
-    .setCustomId(`amcfg_select_whitelist_${sessionId}`).setPlaceholder("Whitelist configuration...")
-    .addOptions([
-      ...allOptions.filter(option => !isFeature(option) && isWhitelist(option)),
-    ]);
-  const nativeRuleIds = gd.nativeAutomod?.ruleIds || {};
-  const nativeRuleStatus = key => nativeRuleIds[`filter_${key}`] ? "native" : "bot fallback";
-  const nativeSpamStatus = nativeRuleStatus("spam");
-  const nativeDuplicateStatus = nativeRuleStatus("duplicate");
-  const nativeMentionStatus = nativeRuleStatus("mentions") === "native" || nativeRuleIds.filter_filtermentions || nativeRuleIds.mentions ? "native" : "bot fallback";
-  const nativeCapsStatus = nativeRuleStatus("caps");
-  const nativeZalgoStatus = nativeRuleStatus("zalgo");
-  const nativeEveryoneStatus = nativeRuleStatus("everyone");
+  const toggleStates = {
+    antispam: savedFeature("antiSpam", am.antiSpam?.enabled),
+    antimention: savedFeature("antiMassMention", am.antiMassMention?.enabled),
+    anticaps: savedFeature("antiCaps", am.antiCaps?.enabled),
+    antiinvite: savedFeature("antiInvite", am.antiInvite?.enabled),
+    antilink: savedFeature("antiLink", am.antiLink?.enabled ?? gd.antilink?.enabled),
+    antibot: savedFeature("antiBot", gd.antibot?.enabled),
+    badwords: savedFeature("badWords", gd.badWordEnabled),
+    nsfw: savedFeature("nsfw", gd.nsfwProtection),
+    advduplicate: savedFeature("duplicate", adv.duplicate?.enabled),
+    advscams: savedFeature("scams", adv.scams?.enabled) || savedFeature("imageScam", adv.imageScam?.enabled),
+    accountage: savedFeature("accountAge", gd.accountAge?.enabled),
+  };
+  dropdown.addOptions(allOptions.filter(isFeature).map(option => {
+    const enabled = toggleStates[option.value.split("_")[1]];
+    return { ...option, label: option.label.replace(/^Toggle /, enabled ? "Disable " : "Enable "),
+      description: `Currently ${enabled ? "ON" : "OFF"}. Select to ${enabled ? "disable" : "enable"}.` };
+  }));
   const spamRuleWarning = (gd.nativeAutomod?.warnings || []).find(warning => /spam/i.test(warning));
   const featureLines = [
     `${spam} Anti-Spam`,
@@ -2573,7 +2630,7 @@ function buildAutomodConfigContainer(guildId, sessionId, user) {
     .addSeparatorComponents(s => s.setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addTextDisplayComponents(t => t.setContent(
       `> **Status →** ${systemEnabled ? "`Enabled` <:tick:1559236522711187577>" : "`Disabled` <:scross:1559257945030525110>"} · ${systemEnabled ? "Active" : "Inactive"}\n` +
-      "> **Protection actions →** Configured in the dashboard\n" +
+      "> **Settings and whitelists →** Configure on the website using Dashboard\n" +
       `> **AutoMod Logs →** ${adv.logs ? `<#${adv.logs}>` : "`Not set`"}`
     ))
     .addSeparatorComponents(s => s.setSpacing(SeparatorSpacingSize.Small).setDivider(true))
@@ -2583,17 +2640,15 @@ function buildAutomodConfigContainer(guildId, sessionId, user) {
       ...protectionFeatures.map(feature => `> ${featureState(savedFeature(feature.key, sec[feature.key]))} ${feature.label}`),
       `> ${featureState(savedFeature("accountAge", gd.accountAge?.enabled))} Account Age Gate - ${gd.accountAge?.minDays || sec.savedAccountAgeDays || sec.accountAgeDays || 7} days`,
       `> **Filter Channels →** \`${filterChannels.size}\``,
-      `> **Discord Pre-Send Block →** Spam: ${nativeSpamStatus} · Duplicate: ${nativeDuplicateStatus} · Mentions: ${nativeMentionStatus} · Caps: ${nativeCapsStatus} · Zalgo: ${nativeZalgoStatus} · @everyone: ${nativeEveryoneStatus}`,
       ...(spamRuleWarning ? [`> **Spam Rule Warning →** ${spamRuleWarning}`] : []),
     ].join("\n")))
     .addSeparatorComponents(s => s.setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addActionRowComponents(new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`amcfg_enableall_${sessionId}`).setLabel("Enable").setEmoji({ id: "1559236522711187577", name: "tick" }).setStyle(ButtonStyle.Success).setDisabled(bulk.allEnabled),
       new ButtonBuilder().setCustomId(`amcfg_disableall_${sessionId}`).setLabel("Disable").setEmoji({ id: "1559257945030525110", name: "scross" }).setStyle(ButtonStyle.Danger).setDisabled(bulk.allDisabled),
-      new ButtonBuilder().setLabel("Dashboard Settings").setStyle(ButtonStyle.Link).setURL(require("./utils/securityDashboardSettings").dashboardUrl(guildId, "automod")),
+      new ButtonBuilder().setLabel("Dashboard").setStyle(ButtonStyle.Link).setURL(require("./utils/securityDashboardSettings").dashboardUrl(guildId, "automod")),
     ))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(dropdown))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(whitelistMenu));
+    .addActionRowComponents(new ActionRowBuilder().addComponents(dropdown));
 }
 
 // Feature set the AutoMod Enable/Disable buttons act on (mirrors configureAutomodSystem).
@@ -2660,9 +2715,9 @@ function buildAntiLinkConfigContainer(guildId, sessionId, user) {
 /* ================= PREMIUM SYSTEM ================= */
 
 const PREMIUM_PLANS = {
-  plus: { name: "Plus", duration: 30 * 24 * 60 * 60 * 1000, label: "Plus", emoji: featureEmoji("premium") },
-  pro: { name: "Pro", duration: 30 * 24 * 60 * 60 * 1000, label: "Pro", emoji: featureEmoji("premium") },
-  ultra: { name: "Ultra", duration: 30 * 24 * 60 * 60 * 1000, label: "Ultra", emoji: featureEmoji("premium") }
+  plus: { name: "Plus", price: "₹99/month", duration: 30 * 24 * 60 * 60 * 1000, label: "Plus", emoji: featureEmoji("premium") },
+  pro: { name: "Pro", price: "₹199/month", duration: 30 * 24 * 60 * 60 * 1000, label: "Pro", emoji: featureEmoji("premium") },
+  ultra: { name: "Ultra", price: "₹299/month", duration: 30 * 24 * 60 * 60 * 1000, label: "Ultra", emoji: featureEmoji("premium") }
 };
 
 const PREMIUM_FEATURES = {
@@ -2676,8 +2731,12 @@ const PREMIUM_FEATURES = {
     "Up to 10 open tickets per user",
     "Up to 10 embed fields per embed",
     //  Security 
-    "Anti-Nuke whitelist: up to 5 users",
-    "Wall System: up to 3 whitelist roles",
+    "Raid mode with configurable join-burst response",
+    "Webhook guard, Anti-Bot controls, and account-age join shield",
+    "Recent security action timeline",
+    "Up to 5 event workflows and 3 conditional role rules",
+    "1 scheduled role reminder and up to 5 conditional auto-replies",
+    "Welcome message test preview",
     "Warn escalation: up to 5 tiers",
     "Security log history: 30 days",
     "Verification: button + account age gate",
@@ -2696,8 +2755,12 @@ const PREMIUM_FEATURES = {
     "Up to 25 open tickets per user",
     "Up to 15 embed fields per embed",
     //  Security 
-    "Anti-Nuke whitelist: up to 15 users",
-    "Wall System: up to 10 whitelist roles",
+    "Role Guard for dangerous role and permission changes",
+    "Security alert role notifications",
+    "Activity-based trust scores and configurable risk weights",
+    "Automatic discussion threads and scheduled bot-message cleanup",
+    "Up to 15 workflows, 20 conditional role rules, and 5 role reminders",
+    "Up to 20 conditional auto-replies",
     "Warn escalation: unlimited tiers + warn expiry",
     "Security log history: 90 days + CSV/JSON export",
     "Verification: + custom questions + VPN/proxy detect",
@@ -2708,7 +2771,7 @@ const PREMIUM_FEATURES = {
   ],
   ultra: [
     //  Core 
-    "Everything in Pro – forever",
+    "Everything in Pro",
     "Unlimited open tickets per user",
     "Up to 25 embed fields per embed",
     "Early access to new features",
@@ -2716,8 +2779,10 @@ const PREMIUM_FEATURES = {
     "Custom bot branding per server",
     "Priority bug fixes & feature requests",
     //  Security 
-    "Anti-Nuke whitelist: UNLIMITED users",
-    "Wall System: UNLIMITED whitelist roles",
+    "Owner-confirmed recovery from a server snapshot",
+    "Emergency verification lockdown with previous-level restore",
+    "Unlimited workflows, conditional role rules, scheduled reminders, and auto-replies",
+    "Unlimited scheduled cleanup channels for bot-authored posts",
     "Warn escalation: unlimited tiers + appeal system via ticket",
     "Security log history: 1 year + full audit before/after values",
     "Verification: + alt account detect + shared IP flag",
@@ -3163,7 +3228,7 @@ function buildPremiumPlansContainer() {
   const lines = Object.entries(PREMIUM_PLANS).map(([key, plan]) => {
     const duration = "30 days";
     const features = PREMIUM_FEATURES[key].map(f => `${ARROW}  ${f}${EXCL}`).join("\n");
-    return `**${plan.emoji} ${plan.label} – ${plan.name}**\n${features}\n${ARROW}  **Duration:** ${duration}${EXCL}`;
+    return `**${plan.emoji} ${plan.label} – ${plan.name} · ${plan.price}**\n${features}\n${ARROW}  **Duration:** ${duration}${EXCL}`;
   }).join("\n\n");
 
   const desc =
@@ -3184,76 +3249,24 @@ function buildPremiumPlansContainer() {
  */
 function buildPremiumSecurityHelpContainer(userId, guildId) {
   const ARROW = getEmoji("black_dot");
-  const EN    = STATUS.enabled;
-  const DIS   = STATUS.disabled;
-  const GEM   = featureEmoji("premium");
-
-  // Security modules remain available to every server; this panel is informational only.
-
-  // Tier comparison table
-  const table =
-    "```\n" +
-    "Feature                    Free  Plus  Pro   Ultra\n" +
-    "\n" +
-    "Anti-Nuke Whitelist         1     5     15    ∞\n" +
-    "Wall Whitelist Roles           1     3     10    ∞\n" +
-    "Multi-Owner Trusted Users   1     5     15    ∞\n" +
-    "Warn Escalation Tiers       3     5     ∞     ∞\n" +
-    "Warn Expiry (auto-expire)   ✗     ✗     ✓     ✓\n" +
-    "Warn Appeal via Ticket      ✗     ✗     ✗     ✓\n" +
-    "Security Log History       7d    30d   90d   1yr\n" +
-    "Log Export (CSV/JSON)       ✗     ✗     ✓     ✓\n" +
-    "Log Audit Before/After      ✗     ✗     ✗     ✓\n" +
-    "Automod Rules              10    20     ∞     ∞\n" +
-    "Automod – Regex             ✗     ✓     ✓     ✓\n" +
-    "Automod – Per-Channel       ✗     ✗     ✓     ✓\n" +
-    "Automod – File Type Block   ✗     ✗     ✓     ✓\n" +
-    "Automod – Link Rep Check    ✗     ✗     ✗     ✓\n" +
-    "Verification – Button       ✓     ✓     ✓     ✓\n" +
-    "Verification – Age Gate     ✗     ✓     ✓     ✓\n" +
-    "Verification – Custom Q's   ✗     ✗     ✓     ✓\n" +
-    "Verification – VPN Detect   ✗     ✗     ✓     ✓\n" +
-    "Verification – Alt Detect   ✗     ✗     ✗     ✓\n" +
-    "Anti-Bot Queue              ✗     ✗     ✓     ✓\n" +
-    "Anti-Bot Auto-Revoke Perms  ✗     ✗     ✓     ✓\n" +
-    "Webhook Nuke Protection     ✗     ✗     ✗     ✓\n" +
-    "Role Hierarchy Restore      ✗     ✗     ✗     ✓\n" +
-    "Raid – Join Rate Limiter    ✗     ✗     ✓     ✓\n" +
-    "Raid – Lockdown Scheduler   ✗     ✗     ✓     ✓\n" +
-    "Raid – Mass-Join Lockdown   ✗     ✗     ✗     ✓\n" +
-    "```";
+  // Core safeguards remain available to every server; only the new premium commands below are gated.
 
   const sections = [
-    `**${ARROW} ${featureEmoji("antinuke")} Anti-Nuke**\n` +
-    `Whitelist trusted users who bypass all nuke checks. Free = 1 user. Plus = 5, Pro = 15, Ultra = unlimited.\n` +
-    `Ultra also unlocks **webhook nuke protection** and **role hierarchy auto-restore** on detection.\n`,
-
-    `**${ARROW} ${featureEmoji("wall")} Wall System**\n` +
-    `Whitelist roles that bypass wall quarantine checks. Free = 1, Plus = 3, Pro = 10, Ultra = unlimited.\n` +
-    `Pro+ adds quarantine history/logs and auto-quarantine on join.\n`,
-
-    `**${ARROW} ${featureEmoji("antibot")} Anti-Bot**\n` +
-    `Pro+ holds new bots in a **verification queue** before granting access, auto-revokes their permissions on detection, and DMs the owner on bot join.\n`,
-
-    `**${ARROW} ${featureEmoji("automod")} Automod**\n` +
-    `Free gets keyword lists (10 rules). Plus unlocks regex + 20 rules. Pro adds per-channel rules & file/attachment type blocking. Ultra adds link reputation checks against known phishing domains.\n`,
-
-    `**${ARROW} ${featureEmoji("moderation")} Warn System**\n` +
-    `Escalation tiers: Free = 3, Plus = 5, Pro/Ultra = unlimited. Pro+ adds warn **auto-expiry**. Ultra unlocks warn **appeal via ticket** integration.\n`,
-
-    `**${ARROW} ${featureEmoji("antinuke")} Raid Protection**\n` +
-    `Pro+ enables a **join rate limiter** (slow-mode for joins) and a timed **lockdown scheduler**. Ultra adds **mass-join auto-lockdown** + auto-ban/kick of detected raid waves.\n`,
-
-    `**${ARROW} ${featureEmoji("wall")} Verification Gate**\n` +
-    `Free = button only. Plus adds **account age gate**. Pro adds **custom questions** + **VPN/proxy detection**. Ultra adds **alt account detection** via shared IP flagging.\n`,
-
-    `**${ARROW} ${featureEmoji("logging")} Security Logs**\n` +
-    `History: Free = 7 days → Plus = 30d → Pro = 90d → Ultra = 1 year. Pro+ unlocks **CSV/JSON export**. Ultra adds full **before/after audit log** on every moderation action.\n`,
+    `**${ARROW} Core protection**\n` +
+    `Anti-Nuke, Wall/Quarantine, and their whitelist capacity remain available without a paid tier. These safeguards are not upsells.\n`,
+    `**${ARROW} Plus · security & automation**\n` +
+    `Raid mode, webhook guard, bot guard, join shield, audit action log, event workflows, conditional autoroles, scheduled role reminders, conditional auto-replies, and welcome previews.\n`,
+    `**${ARROW} Pro · advanced controls**\n` +
+    `Role Guard, configurable trust scoring, security alert roles, auto-threads, and scheduled cleanup of the bot’s own unpinned posts. Pro raises the workflow and automation limits.\n`,
+    `**${ARROW} Ultra · recovery**\n` +
+    `Owner-confirmed snapshot restore and emergency verification lockdown with restoration of the server’s previous verification level. Ultra removes the automation limits.\n`,
+    `**${ARROW} Safety and permissions**\n` +
+    `Commands that change settings require server management permission. Restore and panic require the server owner or bot owner. Workflow tests are dry runs; restore shows a preview and asks for a one-time confirmation code.\n`,
   ];
 
   const desc =
     `## ${featureEmoji("antinuke")} Security Modules\n` +
-    `> All security modules shown here are free to enable. This panel is informational and does not gate protection.\n\n` +
+    `> Core protection stays available to every server. These premium commands are gated by the active plan.\n\n` +
     sections.join("\n");
 
   return new ContainerBuilder()

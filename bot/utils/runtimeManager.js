@@ -1202,7 +1202,7 @@ const SOEZY_SUBCOMMAND_REQUIRED = Object.freeze({
         "ttt":            ["start","stop"],
         "tictactoe":      ["start","stop"],
         "bs":             ["start","stop","join"],
-        "botset":         ["name","avatar","banner","reset"],
+        "botset":         ["name","avatar","banner","reset","status"],
         "rotateavatar":   ["add","remove","list","config","start","stop"],
         "rotavatar":      ["add","remove","list","config","start","stop"],
         "heist":          ["start","join","stop"],

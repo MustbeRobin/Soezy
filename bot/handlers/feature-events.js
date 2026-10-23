@@ -382,7 +382,7 @@ if ((guildData(guildId).welcome?.enabled && guildData(guildId).welcome?.channel)
   const rolesToApply = member.user.bot
     ? (arData.botRoles  || [])
     : (arData.userRoles || []);
-  for (const roleId of rolesToApply) {
+  for (const roleId of guildData(guildId).systems?.autorole === false ? [] : rolesToApply) {
     const role = member.guild.roles.cache.get(roleId);
     if (role) await member.roles.add(role).catch(() => {});
   }

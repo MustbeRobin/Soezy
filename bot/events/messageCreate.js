@@ -1,5 +1,6 @@
 var soezyMusic = require("./commands/music/music");
 var soezyMusicRecovery = require("./utils/musicManager");
+var soezyPremiumListView = require("./utils/premiumListView");
 var infectManager = require("./utils/infectManager");
 infectManager.configure({
   guildData,
@@ -2082,6 +2083,31 @@ registerMessageCreateHandler(async msg => {
       }
     }
 
+    // Keep the dashboard entry points reachable with the bot's configured
+    // default prefix after a server installs a custom prefix. This fallback
+    // is limited to dashboard aliases; all other commands still use the
+    // server's active prefix exclusively.
+    const guildPrefix = String(db.prefixes?.[guildId] || "").trim();
+    if (guildPrefix) {
+      const dashboardAliases = new Set(["dashboard", "dash", "panel"]);
+      const fallbackPrefixes = [...new Set([
+        String(config?.prefix || DEFAULT_PREFIX || "!").trim(),
+        String(DEFAULT_PREFIX || "!").trim(),
+      ])].filter(prefix => prefix && prefix !== guildPrefix && commandContent.startsWith(prefix))
+        .sort((a, b) => b.length - a.length);
+      for (const fallbackPrefix of fallbackPrefixes) {
+        const parts = commandContent.slice(fallbackPrefix.length).trim().split(/\s+/);
+        const fallbackCommand = parts.shift()?.toLowerCase() || null;
+        if (!dashboardAliases.has(fallbackCommand)) continue;
+        if (!dashboardAliases.has(cmd)) {
+          usedPrefix = fallbackPrefix;
+          cmd = fallbackCommand;
+          args = parts;
+        }
+        break;
+      }
+    }
+
     // ── Double-mention fix ──
     // When a user replies with "mention on reply" ON and also types @bot manually,
     // Discord sends "<@botId> <@botId> help". After stripping the first mention,
@@ -2095,7 +2121,7 @@ registerMessageCreateHandler(async msg => {
 
     // Resolve server command aliases before the normal command dispatcher.
     // Example: `,alias set ban chummah` makes `,chummah @user` run `,ban @user`.
-    if (cmd && usedPrefix !== null) {
+    if (cmd && usedPrefix !== null && !["dashboard", "dash", "panel"].includes(cmd)) {
       const aliasedCommand = getGuildCommandAlias(cmd);
       if (aliasedCommand) cmd = aliasedCommand;
     }
@@ -2429,6 +2455,12 @@ registerMessageCreateHandler(async msg => {
       cmd = routeCommandName(cmd);
     }
 
+    if (cmd === "wall" && args[0]?.toLowerCase() === "antibetrayal") {
+      try {
+        if (!client._antiBetrayal) throw new Error("Anti-Betrayal is unavailable.");
+        return await require("./utils/antiBetrayalCommand").antiBetrayalCommand(client._antiBetrayal, msg, args.slice(1));
+      } catch (error) { return msg.reply({ content: error.message, allowedMentions: { parse: [] } }); }
+    }
     msg._soezyOwnerSecurityFeature = cmd === "wall" || (["enable", "disable"].includes(cmd) && args[0] === "wall")
       ? "wall"
       : "antinuke";
@@ -3326,6 +3358,7 @@ registerMessageCreateHandler(async msg => {
       } // close autoreact if
 
       /* ================= AUTO RESPONDER ================= */
+      if (typeof handleSoezyPremiumAutoReplyMessage === "function" && await handleSoezyPremiumAutoReplyMessage(msg)) return;
       if (_gd.autoresponder?.enabled !== false && !msg.content.startsWith(PREFIX)) {
         const replyKey = `${msg.guildId}:${msg.channel.id}:${msg.id}`;
         if (!globalThis.__soezyAutoresponderReplies) globalThis.__soezyAutoresponderReplies = new Set();
@@ -4755,6 +4788,10 @@ registerMessageCreateHandler(async msg => {
 
         if (subCmd === "config" || !subCmd) {
           const sessionId = `${msg.author.id}_${Date.now()}`;
+          const config = guildData(guildId).antinuke || {};
+          if ((config.systemEnabled ?? config.enabled) !== true) {
+            return msg.reply({ components: [createErrorContainer("Anti-Nuke Disabled", `Please enable this feature first with \`${PREFIX}antinuke enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 });
+          }
           if (typeof buildAntiNukeConfigContainer === "function") {
             const container = buildAntiNukeConfigContainer(msg.guildId, sessionId, msg.author);
             return msg.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -5172,6 +5209,10 @@ registerMessageCreateHandler(async msg => {
 
         const subCmd = args[0]?.toLowerCase();
         if (!subCmd || subCmd === "config") {
+          const config = guildData(guildId).automod || {};
+          if ((config.systemEnabled ?? config.enabled) !== true) {
+            return msg.reply({ components: [createErrorContainer("AutoMod Disabled", `Please enable this feature first with \`${PREFIX}automod enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 });
+          }
           const loading = await msg.reply({ components: [buildSecurityLoadingContainer("Loading AutoMod Configuration...")], flags: MessageFlags.IsComponentsV2 });
           const sessionId = `${msg.author.id}_${Date.now()}`;
           return loading.edit({ components: [buildAutomodConfigContainer(guildId, sessionId, msg.author)], flags: MessageFlags.IsComponentsV2 });
@@ -5179,7 +5220,8 @@ registerMessageCreateHandler(async msg => {
         if (subCmd === "enable" || subCmd === "disable") {
           try {
             await configureAutomodSystem(msg.guild, subCmd === "enable");
-            return msg.reply({ components: [buildAutomodConfigContainer(guildId, `${msg.author.id}_${Date.now()}`, msg.author)], flags: MessageFlags.IsComponentsV2 });
+            const state = subCmd === "enable" ? "enabled" : "disabled";
+            return msg.reply({ components: [createSuccessContainer(`AutoMod ${state === "enabled" ? "Enabled" : "Disabled"}`, `AutoMod is now **${state}**.`)], flags: MessageFlags.IsComponentsV2 });
           } catch (error) {
             return msg.reply({ components: [createErrorContainer("AutoMod Setup Failed", error.message)], flags: MessageFlags.IsComponentsV2 });
           }
@@ -5922,8 +5964,11 @@ registerMessageCreateHandler(async msg => {
         let filter = null;
         let filterName = "all";
 
-        // Handle different purge types
-        if (["images", "image", "img", "attachments", "media"].includes(type)) {
+        // Handle different purge types. Only the unfiltered "all" purge needs
+        // the full confirmation container; scoped filters proceed directly.
+        if (type === "all") {
+          amount = parseInt(args[1], 10) || 50;
+        } else if (["images", "image", "img", "attachments", "media"].includes(type)) {
           amount = parseInt(args[1]) || 50;
           filter = m => m.attachments.size > 0;
           filterName = "images";
@@ -5954,17 +5999,15 @@ registerMessageCreateHandler(async msg => {
         } else if (["contains", "has", "with"].includes(type)) {
           const searchText = args.slice(2).join(" ").toLowerCase();
           amount = parseInt(args[1]) || 50;
-          if (searchText) {
-            filter = m => m.content.toLowerCase().includes(searchText);
-            filterName = `containing "${searchText}"`;
-          }
+          if (!searchText) return msg.reply({ components: [createErrorContainer("Missing Search Text", `Usage: \`${PREFIX}purge contains <amount> <text>\``)], flags: MessageFlags.IsComponentsV2 });
+          filter = m => m.content.toLowerCase().includes(searchText);
+          filterName = `containing "${searchText}"`;
         } else if (["startswith", "starts"].includes(type)) {
           const searchText = args.slice(2).join(" ").toLowerCase();
           amount = parseInt(args[1]) || 50;
-          if (searchText) {
-            filter = m => m.content.toLowerCase().startsWith(searchText);
-            filterName = `starting with "${searchText}"`;
-          }
+          if (!searchText) return msg.reply({ components: [createErrorContainer("Missing Search Text", `Usage: \`${PREFIX}purge startswith <amount> <text>\``)], flags: MessageFlags.IsComponentsV2 });
+          filter = m => m.content.toLowerCase().startsWith(searchText);
+          filterName = `starting with "${searchText}"`;
         } else {
           const mentionedUser = msg.mentions?.users?.first?.() || null;
           const resolvedUser = mentionedUser || (args[0] && args[1] ? await resolveUser(msg, args[0]) : null);
@@ -5978,18 +6021,20 @@ registerMessageCreateHandler(async msg => {
         }
 
         if (!Number.isInteger(amount) || amount < 1 || amount > 999) {
-          return msg.reply({ components: [createErrorContainer("That Amount Makes No Sense", `Usage: \`${PREFIX}purge <1-999>\`, \`${PREFIX}purge @user <1-999>\`, or \`${PREFIX}purge <type> <amount>\`\nTypes: \`images\`, \`bots\`, \`embeds\`, \`links\`, \`text\`, \`mentions\`, \`humans\``)], flags: MessageFlags.IsComponentsV2 });
+          return msg.reply({ components: [createErrorContainer("That Amount Makes No Sense", `Usage: \`${PREFIX}purge <1-999>\`, \`${PREFIX}purge all <1-999>\`, \`${PREFIX}purge @user <1-999>\`, or \`${PREFIX}purge <type> <amount>\`\nTypes: \`all\`, \`images\`, \`bots\`, \`embeds\`, \`links\`, \`text\`, \`mentions\`, \`humans\``)], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const purgeConfirmed = await requestModerationConfirmation(msg, {
-          permission: "ManageMessages", channelId: msg.channel.id,
-          action: "purge",
-          title: `Purge ${amount} Messages (${filterName})`,
-          target: `${amount} message${amount !== 1 ? "s" : ""} in ${msg.channel}`,
-          reason: `Purge filter: ${filterName}`,
-          moderator: msg.author,
-        });
-        if (!purgeConfirmed) return;
+        if (!filter && filterName === "all") {
+          const purgeConfirmed = await requestModerationConfirmation(msg, {
+            permission: "ManageMessages", channelId: msg.channel.id,
+            action: "purge",
+            title: `Purge ${amount} Messages (${filterName})`,
+            target: `${amount} message${amount !== 1 ? "s" : ""} in ${msg.channel}`,
+            reason: `Purge filter: ${filterName}`,
+            moderator: msg.author,
+          });
+          if (!purgeConfirmed) return;
+        }
 
         try {
           // Send "Deleting messages..." status message
@@ -12874,7 +12919,8 @@ const _warnEmbed = buildModerationResultEmbed({ guild: msg.guild, executor: msg.
       if (subCmd === "enable" || subCmd === "disable") {
         try {
           await configureWallSystem(msg.guild, subCmd === "enable", msg.author);
-          return msg.reply({ components: [buildWallConfigContainer(guildId, `${msg.author.id}_${Date.now()}`, msg.author)], flags: MessageFlags.IsComponentsV2 });
+          const state = subCmd === "enable" ? "enabled" : "disabled";
+          return msg.reply({ components: [createSuccessContainer(`Wall ${state === "enabled" ? "Enabled" : "Disabled"}`, `Wall is now **${state}**.`)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
           return msg.reply({ components: [createErrorContainer("Wall Setup Failed", error.message)], flags: MessageFlags.IsComponentsV2 });
         }
@@ -13197,6 +13243,10 @@ const _warnEmbed = buildModerationResultEmbed({ guild: msg.guild, executor: msg.
       }
 
       if (subCmd === "config" || !subCmd) {
+        const wallConfig = guildData(guildId).wallSystem || {};
+        if ((wallConfig.systemEnabled ?? wallConfig.enabled) !== true) {
+          return msg.reply({ components: [createErrorContainer("Wall Disabled", `Please enable this feature first with \`${guildData(guildId).prefix || PREFIX}wall enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 });
+        }
         const sessionId = `${msg.author.id}_${Date.now()}`;
         const container = buildWallConfigContainer(guildId, sessionId, msg.author);
         return msg.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -16367,6 +16417,62 @@ const _warnEmbed = buildModerationResultEmbed({ guild: msg.guild, executor: msg.
       }
     }
 
+    /* ================= GLOBAL BOT STATUS COMMAND ================= */
+    if ((cmd === "botset" || cmd === "gbot") && args[0]?.toLowerCase() === "status") {
+      const owner = (Array.isArray(config.ownerIds) && config.ownerIds.map(String).includes(String(msg.author.id))) || soezyOwnerManager?.isBotOwner?.(msg.author.id) === true;
+      if (!owner) return msg.reply({ components: [createErrorContainer("Bot Owner Only", "Only a configured bot owner can change the global activity or online state.")], flags: MessageFlags.IsComponentsV2 });
+      const statusInput = args.slice(1).join(" ").trim();
+      if (!statusInput) {
+        const current = db.botPresence;
+        const description = current?.message
+          ? "Current global activity: " + current.activityType + " · " + String(current.status || "online").toUpperCase() + ".\nUse " + PREFIX + "botset status <message> or " + PREFIX + "botset status watching <message>. Use " + PREFIX + "botset status reset to restore the default."
+          : "The default member-count activity is active. Use " + PREFIX + "botset status <message> or " + PREFIX + "botset status watching <message>. Use " + PREFIX + "botset status reset to restore it.";
+        return msg.reply({ components: [createSuccessContainer("Global Bot Status", description)], flags: MessageFlags.IsComponentsV2, allowedMentions: { parse: [] } });
+      }
+      if (statusInput.toLowerCase() === "reset") {
+        const previous = db.botPresence;
+        if (typeof globalThis.__soezyApplyBotPresence !== "function") return msg.reply({ components: [createErrorContainer("Unavailable", "The bot presence updater is not ready yet. Try again shortly.")], flags: MessageFlags.IsComponentsV2 });
+        delete db.botPresence;
+        try {
+          await saveDB();
+          await Promise.resolve(globalThis.__soezyApplyBotPresence(null));
+        } catch (error) {
+          if (previous === undefined) delete db.botPresence; else db.botPresence = previous;
+          try { await saveDB(); await Promise.resolve(globalThis.__soezyApplyBotPresence(db.botPresence || null)); } catch {}
+          return msg.reply({ components: [createErrorContainer("Status Reset Failed", "The previous global bot status was restored.")], flags: MessageFlags.IsComponentsV2 });
+        }
+        return msg.reply({ components: [createSuccessContainer("Default Bot Status Restored", "The member-count activity and online state are active again.")], flags: MessageFlags.IsComponentsV2 });
+      }
+      let activityType = "Playing";
+      let activityMessage = statusInput;
+      let desiredPresenceStatus = ["online", "idle", "dnd"].includes(db.botPresence?.status) ? db.botPresence.status : "online";
+      const requestedState = activityMessage.match(/^(online|idle|dnd)\s+([\s\S]+)$/i);
+      if (requestedState) {
+        desiredPresenceStatus = requestedState[1].toLowerCase();
+        activityMessage = requestedState[2].trim();
+      }
+      const typedStatus = activityMessage.match(/^(playing|watching|listening|competing)\s+([\s\S]+)$/i);
+      if (typedStatus) {
+        activityType = typedStatus[1][0].toUpperCase() + typedStatus[1].slice(1).toLowerCase();
+        activityMessage = typedStatus[2].trim();
+      }
+      if (!activityMessage || activityMessage.length > 128 || /[\x00-\x1f\x7f]/.test(activityMessage)) {
+        return msg.reply({ components: [createErrorContainer("Invalid Status", "Activity text must be 1–128 characters with no control characters.\nUsage: " + PREFIX + "botset status <message> or " + PREFIX + "botset status watching <message>.")], flags: MessageFlags.IsComponentsV2 });
+      }
+      if (typeof globalThis.__soezyApplyBotPresence !== "function") return msg.reply({ components: [createErrorContainer("Unavailable", "The bot presence updater is not ready yet. Try again shortly.")], flags: MessageFlags.IsComponentsV2 });
+      const previous = db.botPresence;
+      db.botPresence = { message: activityMessage, activityType, status: desiredPresenceStatus };
+      try {
+        await saveDB();
+        await Promise.resolve(globalThis.__soezyApplyBotPresence(db.botPresence));
+      } catch (error) {
+        if (previous === undefined) delete db.botPresence; else db.botPresence = previous;
+        try { await saveDB(); await Promise.resolve(globalThis.__soezyApplyBotPresence(db.botPresence || null)); } catch {}
+        return msg.reply({ components: [createErrorContainer("Status Update Failed", "The previous global bot status was restored.")], flags: MessageFlags.IsComponentsV2 });
+      }
+      return msg.reply({ components: [createSuccessContainer("Global Bot Status Updated", "Activity type: " + activityType + "\nOnline state: " + db.botPresence.status.toUpperCase() + "\n-# This status is shared across every server.")], flags: MessageFlags.IsComponentsV2, allowedMentions: { parse: [] } });
+    }
+
     /* ================= BOT IDENTITY COMMANDS ================= */
     // !botset name <new name>  — set bot username
     // !botset avatar <url | attachment>  — set bot profile picture
@@ -17568,6 +17674,10 @@ const _fmuteEmbed = buildModerationResultEmbed({ guild: msg.guild, executor: msg
     if (cmd === "premium" || cmd === "prem") {
       const sub = args[0]?.toLowerCase();
 
+      // Premium security and automation commands share one entitlement,
+      // permission, persistence, and validation path.
+      if (typeof handleSoezyPremiumToolCommand === "function" && await handleSoezyPremiumToolCommand(msg, args)) return;
+
       // !premium status
       if (!sub || sub === "status" || sub === "check") {
         const container = buildPremiumStatusContainer(msg.author.id, msg.guildId);
@@ -18168,29 +18278,19 @@ const _fmuteEmbed = buildModerationResultEmbed({ guild: msg.guild, executor: msg
         if (!config.ownerIds?.includes(msg.author.id)) {
           return msg.reply({ components: [createErrorContainer("Nope, Not You", "The Chosen One Only")], flags: MessageFlags.IsComponentsV2 });
         }
-        const users = Object.entries(db.premium?.users || {});
-        const guilds = Object.entries(db.premium?.guilds || {});
-
-        const userLines = users.map(([id, p]) => {
-          const exp = `<t:${Math.floor(p.expiresAt / 1000)}:R>`;
-          const active = isPremiumUser(id) ? "<:tick:1559236522711187577>" : "<:scross:1559257945030525110>";
-          return `${active} \`${id}\` — ${PREMIUM_PLANS[p.plan]?.label || p.plan} (${exp})`;
-        }).join("\n") || "*None*";
-
-        const guildLines = guilds.map(([id, p]) => {
-          const exp = `<t:${Math.floor(p.expiresAt / 1000)}:R>`;
-          const active = isPremiumGuild(id) ? "<:tick:1559236522711187577>" : "<:scross:1559257945030525110>";
-          return `${active} \`${id}\` — ${PREMIUM_PLANS[p.plan]?.label || p.plan} (${exp})`;
-        }).join("\n") || "*None*";
-
+        const { container } = soezyPremiumListView.buildPremiumListView({
+          db,
+          type: "users",
+          page: 1,
+          requesterId: msg.author.id,
+          isPremiumUser,
+          isPremiumGuild,
+          premiumPlans: PREMIUM_PLANS,
+          gemEmoji: EMOJIS.gem,
+        });
         return msg.reply({
-          components: [buildRawInfoContainer({
-            title: `${EMOJIS.gem} ${bold("All Premium Holders")}`,
-            description:
-              `**👤 Users (${users.length})**\n${userLines}\n\n` +
-              `**🏠 Guilds (${guilds.length})**\n${guildLines}`,
-            color: getThemeColor(guildId)
-          })], flags: MessageFlags.IsComponentsV2
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 

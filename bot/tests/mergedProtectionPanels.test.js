@@ -12,6 +12,7 @@ const user = { id: "123456789012345679", username: "tester" };
 function context(data) {
   const emoji = "<:tick:1559236522711187577>";
   const ctx = vm.createContext({ ...discord, console: { log() {}, warn() {} }, module: { exports: {} },
+    require: require("node:module").createRequire(path.join(__dirname, "../index.js")),
     guildData: () => data, db: { guilds: { [guildId]: data } }, saveDB() {},
     ALL_SYSTEMS: [{ name: "antinuke", linked: ["antiraid"] }, { name: "automod", linked: ["security"] }],
     EMOJIS: new Proxy({ thinking: "<a:thinking:1559656266261995620>" }, { get: (obj, key) => obj[key] || emoji }),
@@ -69,7 +70,7 @@ test("disabled AntiNuke config stays open and lets authorized users edit saved c
   assert.equal(data.antiRaid.enabled, false);
 });
 
-test("merged AutoMod serializes both feature sets and valid dropdowns", () => {
+test("merged AutoMod exposes feature toggles and routes configuration to the dashboard", () => {
   const ctx = context({ automod: { enabled: true }, security: { antiPhishing: true, webhookGuard: true,
     joinCaptcha: true, noAvatarGate: true, slowmodeManager: true, slowmodeThresh: 10, slowmodeSeconds: 5, ghostPingDetect: true }, ghostPingLog: { enabled: true } });
   const panel = ctx.buildAutomodConfigContainer(guildId, `${user.id}_${Date.now()}`, user).toJSON();
@@ -85,41 +86,26 @@ test("merged AutoMod serializes both feature sets and valid dropdowns", () => {
   assert.equal((text.match(/> [^\n]*Anti-Caps/g) || []).length > 0, true);
   assert.doesNotMatch(text, /Security Configuration|protection_nav_/);
   const menus = panel.components.flatMap(c => c.components || []).filter(c => c.type === 3);
-  assert.equal(menus.length, 2);
-  assert.equal(menus[0].options.length, 17);
+  assert.equal(menus.length, 1);
+  const options = menus[0].options;
+  assert.equal(options.length, 11);
   assert.doesNotMatch(text, /Protection settings|Core Filters/);
   assert.ok(text.indexOf("Account Age Gate") < text.indexOf("Filter Channels"));
-  for (const menu of menus) assert.ok(menu.options.length <= 25);
-  assert.ok(!menus[0].options.some(o => /amcfg_(botwhitelist|botunwhitelist|linkdomain|rmlinkdomain|botmanage|domainmanage)_/.test(o.value)));
-  assert.ok(menus[1].options.some(o => /amcfg_botmanage_/.test(o.value)));
-  assert.ok(menus[1].options.some(o => /amcfg_domainmanage_/.test(o.value)));
-  assert.ok(!menus[1].options.some(o => /feature_(anticaps|antiduplicate)_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /secfg_feature_antiphishing_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_antispam_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_antilink_/.test(o.value)));
-  assert.match(menus[0].options.find(o => /amcfg_antilink_/.test(o.value)).label, /Configure Anti-Link/);
-  assert.ok(menus[0].options.some(o => /amcfg_antibot_/.test(o.value)));
-  assert.match(menus[0].options.find(o => /amcfg_antibot_/.test(o.value)).label, /Configure Anti-Bot/);
-  assert.ok(!menus[0].options.some(o => /amcfg_master(enable|disable)_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_logs_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_messageguards_/.test(o.value)));
-  assert.match(menus[0].options.find(o => /amcfg_messageguards_/.test(o.value)).label, /Message Length Limit/);
-  assert.doesNotMatch(menus[0].options.find(o => /amcfg_messageguards_/.test(o.value)).label, /Slowmode/);
-  assert.ok(menus[0].options.some(o => /amcfg_badwords_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_nsfw_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /amcfg_advduplicate_/.test(o.value)));
-  assert.ok(menus[0].options.some(o => /Scam & Image Scam Detection/.test(o.label)));
-  assert.ok(menus[0].options.some(o => /Configure Invite Protection/.test(o.label)));
+  assert.ok(options.every(option => /^(Enable|Disable) /.test(option.label)));
+  for (const feature of ["antispam", "advduplicate", "antimention", "anticaps", "antiinvite", "antilink", "antibot", "badwords", "nsfw", "advscams", "accountage"]) {
+    assert.ok(options.some(option => option.value.startsWith(`amcfg_${feature}_`)), `missing toggle for ${feature}`);
+  }
+  assert.ok(!options.some(option => /amcfg_(botmanage|domainmanage|wlrole|wluser|wlchannel|rmwl)/.test(option.value)));
+  assert.match(text, /Configure on the website using Dashboard/);
   assert.doesNotMatch(text, /Advanced Invite Protection|Image Scam OCR/);
   assert.equal(panel.components.at(-1).type, 1);
-  assert.ok(!menus.some(menu => menu.options.some(option => /advpunishment/.test(option.value))));
+  assert.ok(!options.some(option => /advpunishment/.test(option.value)));
   const buttons = panel.components.flatMap(c => c.components || []).filter(c => c.type === 2);
-  assert.deepEqual(buttons.map(button => button.label), ["Enable", "Disable", "Punishment"]);
+  assert.deepEqual(buttons.map(button => button.label), ["Enable", "Disable", "Dashboard"]);
   assert.equal(buttons.find(button => button.label === "Enable").emoji.id, "1559236522711187577");
   assert.equal(buttons.find(button => button.label === "Disable").emoji.id, "1559257945030525110");
-  assert.ok(menus.every(menu => menu.options.length <= 25));
-  assert.ok(menus[0].options.some(option => /amcfg_accountage_/.test(option.value)));
-  assert.equal(menus[1].options.length, 22);
+  assert.ok(buttons.find(button => button.label === "Dashboard").url.startsWith("https://soezy-dashboard.vercel.app/dashboard/guild/"));
+  assert.ok(options.length <= 25);
 });
 
 test("removed security features are absent from the config menu", () => {
@@ -130,19 +116,16 @@ test("removed security features are absent from the config menu", () => {
   assert.ok(!ctx.securityConfigFeatureList().some(feature => ["captcha", "noavatar", "slowmode", "ghostping"].includes(feature.id)));
 });
 
-test("AutoMod panel distinguishes native pre-send spam blocking from bot-side filters", () => {
+test("AutoMod panel omits the Discord pre-send summary but retains spam-rule warnings", () => {
   const data = { automod: { enabled: true }, nativeAutomod: { ruleIds: { filter_spam: "native-rule" } } };
   const ctx = context(data);
   let text = JSON.stringify(ctx.buildAutomodConfigContainer(guildId, `${user.id}_${Date.now()}`, user).toJSON());
-  assert.match(text, /Discord Pre-Send Block/);
-  assert.match(text, /Spam: native/);
-  assert.match(text, /Duplicate: bot fallback/);
-  assert.match(text, /Caps: bot fallback/);
+  assert.doesNotMatch(text, /Discord Pre-Send Block|Spam: native|bot fallback/);
 
   delete data.nativeAutomod.ruleIds.filter_spam;
   data.nativeAutomod.warnings = ["Spam was not changed: an existing server rule occupies its only slot."];
   text = JSON.stringify(ctx.buildAutomodConfigContainer(guildId, `${user.id}_${Date.now()}`, user).toJSON());
-  assert.match(text, /Spam: bot fallback/);
+  assert.doesNotMatch(text, /Discord Pre-Send Block|bot fallback/);
   assert.match(text, /Spam Rule Warning/);
 });
 
@@ -228,8 +211,8 @@ test("AutoMod bulk handlers skip already-satisfied backend synchronization", asy
   assert.equal(updates, 2);
 });
 
-test("AntiNuke parent buttons preserve event and raid preferences", async () => {
-  const data = { antinuke: { enabled: true, events: { antiban: false } }, antiRaid: { enabled: false } };
+test("AntiNuke disable button clears event and raid preferences", async () => {
+  const data = { antinuke: { enabled: true, events: { antiban: true } }, antiRaid: { enabled: true } };
   const ctx = context(data);
   ctx.require = require("node:module").createRequire(path.join(__dirname, "../index.js"));
   data.antinuke.logs = "logs";
@@ -243,14 +226,13 @@ test("AntiNuke parent buttons preserve event and raid preferences", async () => 
   const interaction = { guildId, guild, user,
     customId: `ancfg_panel_enable_${user.id}_${Date.now()}`, deferUpdate: async () => {}, editReply: async () => {}, update: async () => {}, reply: async () => assert.fail("unexpected reply") };
   await ctx.soezyAntiNukePanel.interaction(interaction);
-  assert.equal(data.antiRaid.enabled, false);
-  assert.equal(data.antinuke.events.antiban, false);
-  const savedEvents = { ...data.antinuke.events };
+  assert.equal(data.antiRaid.enabled, true);
+  assert.equal(data.antinuke.events.antiban, true);
   interaction.customId = `ancfg_panel_disable_${user.id}_${Date.now()}`;
   await ctx.soezyAntiNukePanel.interaction(interaction);
   assert.equal(data.antiRaid.enabled, false);
   assert.equal(data.antinuke.enabled, false);
-  assert.deepEqual(data.antinuke.events, savedEvents);
+  assert.ok(Object.values(data.antinuke.events).every(value => value === false));
 });
 
 test("AutoMod parent toggle preserves merged protection settings and account age preference", () => {
@@ -284,13 +266,16 @@ test("merged Security dropdown toggles in place without setup or confirmation", 
   assert.equal(data.security.antiPhishing, false);
 });
 
-test("AntiNuke groups related events and includes raid settings", () => {
+test("AntiNuke groups related events and links Dashboard instead of a raid settings button", () => {
   const ctx = context({ antinuke: { enabled: true, events: {} }, antiRaid: { enabled: true, threshold: 12 } });
   const panel = ctx.soezyAntiNukePanel.build(guildId, `${user.id}_${Date.now()}`, user).toJSON();
   const text = JSON.stringify(panel);
   assert.match(text, /Anti Channel Create\/Delete\/Update/);
   assert.match(text, /Anti Raid · ON · Active · 12 joins/);
-  assert.match(text, /Raid Settings/);
+  const dashboard = panel.components.flatMap(row => row.components || []).find(item => item.label === "Dashboard");
+  assert.equal(dashboard.style, discord.ButtonStyle.Link);
+  assert.equal(dashboard.url, ctx.require("./utils/securityDashboardSettings").dashboardUrl(guildId, "antinuke"));
+  assert.doesNotMatch(text, /Raid Settings/);
   assert.doesNotMatch(text, /Anti Everyone\/Here Ping|Anti Role Ping/);
   const enable = panel.components.flatMap(row => row.components || []).find(item => item.custom_id?.startsWith("ancfg_panel_enable_"));
   assert.equal(enable.disabled, true);

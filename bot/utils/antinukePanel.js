@@ -57,7 +57,7 @@ function build(guildId, sessionId, user) {
     new ButtonBuilder().setCustomId(`ancfg_panel_enable_${sessionId}`).setLabel("Enable").setEmoji(EMOJIS.moderation_dm_tick).setStyle(ButtonStyle.Secondary).setDisabled(bulk.allEnabled),
     new ButtonBuilder().setCustomId(`ancfg_panel_disable_${sessionId}`).setLabel("Disable").setEmoji(EMOJIS.scross).setStyle(ButtonStyle.Secondary).setDisabled(bulk.allDisabled),
       new ButtonBuilder().setCustomId(`ancfg_panel_owners_${sessionId}`).setLabel("Extra Owners").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setLabel("Dashboard Settings").setStyle(ButtonStyle.Link).setURL(require("./utils/securityDashboardSettings").dashboardUrl(guildId, "antinuke"))));
+      new ButtonBuilder().setLabel("Dashboard").setStyle(ButtonStyle.Link).setURL(require("./utils/securityDashboardSettings").dashboardUrl(guildId, "antinuke"))));
   container.addActionRowComponents(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
     .setCustomId(`ancfg_panel_events_${sessionId}`).setPlaceholder("Enable / disable a protection")
     .addOptions(menuEvents.map(event => ({
@@ -67,12 +67,16 @@ function build(guildId, sessionId, user) {
 }
 const progress = text => ({ components: [new ContainerBuilder().addTextDisplayComponents(t => t.setContent(`> **${getEmoji("arrow")} ${text}**`))], flags: MessageFlags.IsComponentsV2 });
 const jobs = new Set();
-function setAll(guildId, enabled, client) {
-  setFeatureState(guildId, "antinuke", enabled, { client });
+async function setAll(guildId, enabled, client) {
+  setFeatureState(guildId, "antinuke", enabled, { client, linked: false, sync: false });
   const gd = guildData(guildId);
   if (!["ban", "kick", "strip"].includes(gd.antinuke.punishment)) gd.antinuke.punishment = "ban";
   gd.antinuke.events ||= {};
+  if (!enabled) require("./utils/securityDisableFeatures").disableAntiNukeFeatures(
+    gd, ANTINUKE_EVENTS.map(event => event.id), globalThis.db?.guildSystems?.[guildId]
+  );
   saveDB(guildId);
+  if (typeof syncFeatureState === "function") await syncFeatureState(guildId, "antinuke", { client, refreshPanels: false });
 }
 async function ensureLogsChannel(guild, me) {
   await require("./utils/protectionRole").ensureProtectionRole(guild, "antinuke", { guildData, saveDB });
@@ -136,7 +140,7 @@ async function configure(guild, enabled, client = guild.client) {
       }
       await ensureLogsChannel(guild, me);
     }
-    setAll(guild.id, enabled, client);
+    await setAll(guild.id, enabled, client);
   } finally { jobs.delete(guild.id); }
 }
 async function interaction(i) {
@@ -256,7 +260,7 @@ async function interaction(i) {
         await i.update({ components: [build(i.guildId, sid, i.user)], flags: MessageFlags.IsComponentsV2 });
         return true;
       }
-      setAll(i.guildId, false, i.client);
+      await setAll(i.guildId, false, i.client);
     }
     else if (action.startsWith("events")) {
       const id = i.values?.[0];

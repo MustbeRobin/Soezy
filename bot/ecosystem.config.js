@@ -22,11 +22,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         HOST: "0.0.0.0",
-        SOEZY_START_WEB: process.env.SOEZY_START_WEB || "true",
+        SOEZY_START_WEB: process.env.SOEZY_START_WEB || "false",
         SOEZY_BOT_DIR: process.env.SOEZY_BOT_DIR || __dirname,
-        WEB_PORT: process.env.WEB_PORT || process.env.PORT || "4754",
-        PUBLIC_URL: process.env.PUBLIC_URL || "http://16.170.133.221",
-        DISCORD_REDIRECT_URI: process.env.DISCORD_REDIRECT_URI || "http://16.170.133.221/api/auth/callback"
       }
     }
   ]

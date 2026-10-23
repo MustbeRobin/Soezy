@@ -1,5 +1,6 @@
 var soezyMusic = require("./commands/music/music");
 var soezyMusicRecovery = require("./utils/musicManager");
+var soezyPremiumListView = require("./utils/premiumListView");
 var infectManager = require("./utils/infectManager");
 infectManager.configure({
   guildData,
@@ -1690,6 +1691,7 @@ async function applyAutomodSystem(guild, enabled) {
 
   gd.nativeAutomod.syncEnabled = true;
   setParentState(false);
+  require("./utils/securityDisableFeatures").disableAutoModFeatures(gd, db.guildSystems?.[guild.id]);
   saveDB(guild.id);
   let disabledRules = 0;
   try {
@@ -4040,6 +4042,29 @@ if (typeof __soezyRuntimeRoot.__soezyInteractionLoaded === "undefined") {
 
       if (interaction.isButton()) {
         const customId = interaction.customId;
+
+        const premiumListButton = customId.match(/^premium_list_(users|guilds)_(\d{17,20})_(\d+)$/);
+        if (premiumListButton) {
+          const [, type, requesterId, rawPage] = premiumListButton;
+          const isBotOwner = config.ownerIds?.includes(interaction.user.id);
+          if (!isBotOwner || requesterId !== interaction.user.id) {
+            return interaction.reply({
+              components: [createErrorContainer("Owner Only", "Only the bot owner who opened this premium list can switch its view.")],
+              flags: MessageFlags.IsComponentsV2 | 64,
+            });
+          }
+          const { container } = soezyPremiumListView.buildPremiumListView({
+            db,
+            type,
+            page: rawPage,
+            requesterId,
+            isPremiumUser,
+            isPremiumGuild,
+            premiumPlans: PREMIUM_PLANS,
+            gemEmoji: EMOJIS.gem,
+          });
+          return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
 
         if (customId.startsWith("ng:")) {
           if (await soezyFunGames.handleNumberGuessButton(interaction)) return;
@@ -11096,7 +11121,7 @@ ${resultLine}
           if (action === "toggle") {
             const enabled = !guildData(guildId).antinuke.enabled;
             if (enabled) return soezyAntiNukePanel.start(interaction);
-            soezyAntiNukePanel.setAll(guildId, false, interaction.client);
+            await soezyAntiNukePanel.setAll(guildId, false, interaction.client);
             return interaction.update({ components: [soezyAntiNukePanel.build(guildId, sessionId, interaction.user)], flags: MessageFlags.IsComponentsV2 });
           }
           if (action === "punishment") return interaction.reply({ content: "AntiNuke punishment is fixed to ban. Open a fresh configuration panel.", flags: 64 });
@@ -11278,14 +11303,16 @@ ${resultLine}
             return interaction.showModal(modal);
           }
           if (action === "antimention") {
-            const enabled = !guildData(guildId).automod.antiMassMention?.enabled;
+            const am = guildData(guildId).automod || {};
+            const enabled = (am.features?.antiMassMention?.enabled ?? am.antiMassMention?.enabled) !== true;
             await interaction.deferUpdate();
             try { await soezyNativeAutomod.setMentions(interaction.guild, globalThis.soezyNativeAutomodDeps, { enabled }); }
             catch (error) { return interaction.editReply({ components: [createErrorContainer("Anti-Mention Update Failed", soezyNativeAutomod.apiError(error))], flags: MessageFlags.IsComponentsV2 }); }
             return interaction.editReply({ components: [buildAutomodConfigContainer(guildId, `${interaction.user.id}_${Date.now()}`, interaction.user)], flags: MessageFlags.IsComponentsV2 });
           }
           if (action === "anticaps") {
-            const enabled = !guildData(guildId).automod.antiCaps?.enabled;
+            const am = guildData(guildId).automod || {};
+            const enabled = (am.features?.antiCaps?.enabled ?? am.antiCaps?.enabled) !== true;
             await interaction.deferUpdate();
             try { await soezyNativeAutomod.setCaps(interaction.guild, globalThis.soezyNativeAutomodDeps, { enabled }); }
             catch (error) { return interaction.editReply({ components: [createErrorContainer("Anti-Caps Update Failed", soezyNativeAutomod.apiError(error))], flags: MessageFlags.IsComponentsV2 }); }
@@ -11293,9 +11320,12 @@ ${resultLine}
           }
           if (action === "antiinvite") {
             if (!guildData(guildId).automod.antiInvite) guildData(guildId).automod.antiInvite = {};
-            const enabled = !guildData(guildId).automod.antiInvite?.enabled;
+            const am = guildData(guildId).automod;
+            const enabled = (am.features?.antiInvite?.enabled ?? am.antiInvite?.enabled) !== true;
             await interaction.deferUpdate();
             guildData(guildId).automod.antiInvite.enabled = enabled;
+            am.features ||= {};
+            am.features.antiInvite = { ...(am.features.antiInvite || {}), enabled };
             await soezyAdvancedAutomod.setFeature(guildId, "invite", enabled, { db, guildData, saveDB });
             guildData(guildId).nativeAutomod ||= { ruleIds: {}, keywords: [], alertChannelId: null };
             guildData(guildId).nativeAutomod.syncEnabled = true;
@@ -13465,15 +13495,17 @@ ${resultLine}
           else if (type === "embeds") { filter = m => m.embeds.length > 0; filterName = "embeds"; }
           else if (type === "links") { filter = m => /(https?:\/\/[^\s]+)/i.test(m.content); filterName = "links"; }
           else if (type === "text") { filter = m => m.attachments.size === 0 && m.embeds.length === 0; filterName = "text only"; }
-          const purgeConfirmed = await requestInteractionModerationConfirmation(interaction, {
-            permission: "ManageMessages", channelId: interaction.channel.id,
-            action: "purge",
-            title: `Purge ${amount} Messages (${filterName})`,
-            target: `${amount} message${amount !== 1 ? "s" : ""} in ${interaction.channel}`,
-            reason: `Purge filter: ${filterName}`,
-            moderator: interaction.user,
-          });
-          if (!purgeConfirmed) return;
+          if (!user && type === "all") {
+            const purgeConfirmed = await requestInteractionModerationConfirmation(interaction, {
+              permission: "ManageMessages", channelId: interaction.channel.id,
+              action: "purge",
+              title: `Purge ${amount} Messages (${filterName})`,
+              target: `${amount} message${amount !== 1 ? "s" : ""} in ${interaction.channel}`,
+              reason: `Purge filter: ${filterName}`,
+              moderator: interaction.user,
+            });
+            if (!purgeConfirmed) return;
+          }
           try {
             let messages = await interaction.channel.messages.fetch({ limit: 100 });
             if (filter) messages = messages.filter(filter);
@@ -13845,6 +13877,10 @@ return interaction.reply(buildModerationResultReplyOptions(buildModerationResult
           const sub = interaction.options.getSubcommand();
           const gId = interaction.guildId;
           if (sub === "config") {
+            const config = guildData(gId).antinuke || {};
+            if ((config.systemEnabled ?? config.enabled) !== true) {
+              return interaction.reply({ components: [createErrorContainer("Anti-Nuke Disabled", `Please enable this feature first with \`${guildData(gId).prefix || PREFIX}antinuke enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 | 64 });
+            }
             const sessionId = `${interaction.user.id}_${Date.now()}`;
             if (typeof buildAntiNukeConfigContainer === "function") {
               const container = buildAntiNukeConfigContainer(gId, sessionId, interaction.user);
@@ -13912,6 +13948,10 @@ return interaction.reply(buildModerationResultReplyOptions(buildModerationResult
           }
           const gId = interaction.guildId;
           const advancedAutomodDeps = { db, guildData, saveDB, words: { badWords, nsfwWords, badWordEnabled: badWordFilter.enabled } };
+          const config = guildData(gId).automod || {};
+          if ((config.systemEnabled ?? config.enabled) !== true) {
+            return interaction.reply({ components: [createErrorContainer("AutoMod Disabled", `Please enable this feature first with \`${guildData(gId).prefix || PREFIX}automod enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 | 64 });
+          }
           const nativeReplyError = error => interaction.reply({ components: [createErrorContainer("Discord Native AutoMod", soezyNativeAutomod.apiError(error))], flags: MessageFlags.IsComponentsV2 | 64 });
           if (sub === "setup") {
             const alertChannel = interaction.options.getChannel("alert_channel");
@@ -14140,6 +14180,10 @@ return interaction.reply(buildModerationResultReplyOptions(buildModerationResult
           const sub = interaction.options.getSubcommand();
           const gId = interaction.guildId;
           if (sub === "config") {
+            const wallConfig = guildData(gId).wallSystem || {};
+            if ((wallConfig.systemEnabled ?? wallConfig.enabled) !== true) {
+              return interaction.reply({ components: [createErrorContainer("Wall Disabled", `Please enable this feature first with \`${guildData(gId).prefix || PREFIX}wall enable\`, then open configuration.`)], flags: MessageFlags.IsComponentsV2 | 64 });
+            }
             const sessionId = `${interaction.user.id}_${Date.now()}`;
             const container = buildWallConfigContainer(gId, sessionId, interaction.user);
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -35,6 +35,9 @@ const path = require("path");
 const os = require("os");
 const EventEmitter = require("events");
 const securitySettings = require("./securityDashboardSettings");
+const moduleSettings = require("./dashboardModuleFields");
+const { createDashboardActions } = require("./dashboardActions");
+const { MAX_STORED_LIST_ENTRIES, active: premiumRecordActive, resolvePlan, securityListLimit } = require("./premiumListLimits");
 
 // ─────────────────────────────────────────────────────────────
 //  Section 1: Auth middleware
@@ -327,6 +330,7 @@ const ALLOWED_CONFIG_PATHS = new Set([
   "automod.antiCaps.enabled", "automod.antiCaps.percentage", "automod.antiCaps.action",
   "automod.antiEmoji.enabled", "automod.antiEmoji.maxEmojis", "automod.antiEmoji.action",
   "automod.antiInvite.enabled", "automod.antiInvite.action",
+  "automod.antiLink.allowedDomains",
   "automod.whitelistUsers", "automod.whitelistRoles", "automod.whitelistChannels",
   "automodWhitelistUsers", "automodWhitelistRoles", "automodWhitelistChannels",
   // Other protected systems
@@ -382,6 +386,12 @@ function isProtectedConfigPath(pathKey) {
     /^(?:automodWhitelist|automodImmune)(?:Users|Roles|Channels)$/.test(path);
 }
 
+function isOwnerOnlyModulePath(pathKey) {
+  const path = String(pathKey || "");
+  return /^(?:antinuke|automod|wallSystem|wall)(?:\.|$)/.test(path) ||
+    /^featureRoleIds\.(?:antinuke|automod|wall)$/.test(path);
+}
+
 function securityListEntityType(pathKey) {
   const path = String(pathKey || "");
   if (/(?:whitelist|immune)(?:Users|Roles|Channels)$/.test(path)) return path.match(/(Users|Roles|Channels)$/)?.[1]?.slice(0, -1).toLowerCase() || null;
@@ -418,8 +428,38 @@ const BRIDGE_STATES = Object.freeze({
 
 // ── Runtime service factory ───────────────────────────────────
 
+function databaseHealthStatus({ store, databaseStat, guildCount, runtimeDb }) {
+  const redisClient = store?.client;
+  if (redisClient && typeof redisClient.isReady === "boolean") {
+    const connected = redisClient.isReady;
+    return {
+      ok: connected,
+      connected,
+      mode: "redis",
+      guilds: Number(guildCount) || 0,
+      revision: String(store.revision ?? "0"),
+      pendingWrites: Boolean(store.batch || store.activeWrite || store.writeRequested),
+      updatedAt: null,
+      bytes: 0,
+      file: null
+    };
+  }
+
+  const fileAvailable = Boolean(databaseStat);
+  return {
+    ok: fileAvailable || Boolean(guildCount) || Boolean(runtimeDb),
+    connected: fileAvailable ? true : null,
+    mode: fileAvailable ? "json" : "internal",
+    guilds: Number(guildCount) || 0,
+    updatedAt: databaseStat ? databaseStat.mtimeMs : null,
+    bytes: databaseStat ? databaseStat.size : 0,
+    file: fileAvailable ? "database.json" : null
+  };
+}
+
 function createBotBridge({ config = {}, logger = console } = {}) {
   for (const key of securitySettings.fields.keys()) ALLOWED_CONFIG_PATHS.add(key);
+  for (const key of moduleSettings.fields.keys()) ALLOWED_CONFIG_PATHS.add(key);
   // ── Internal bot runtime source ────────────────────────────
   const botSettings = config.bot || {};
   const oauthSettings = config.oauth || {};
@@ -446,6 +486,11 @@ function createBotBridge({ config = {}, logger = console } = {}) {
   const botToken = botSettings.token || process.env.DISCORD_BOT_TOKEN || botConfig.token || "";
   let botIdentityCache = null;
   let botIdentityFetchedAt = 0;
+  const apiLatencySampleIntervalMs = Math.max(5000, Number(process.env.SOEZY_API_LATENCY_SAMPLE_MS || 30000));
+  const apiLatencyTimeoutMs = Math.max(500, Number(process.env.SOEZY_API_LATENCY_TIMEOUT_MS || 3000));
+  let discordApiLatency = null;
+  let discordApiLatencySampledAt = 0;
+  let discordApiLatencyInFlight = null;
   const bridgeOfflineAfterMs = Number(process.env.BRIDGE_OFFLINE_AFTER_MS || botSettings.bridgeOfflineAfterMs || 120000);
   const bridgeMonitorMs = Math.max(1000, Number(process.env.BRIDGE_MONITOR_MS || botSettings.statusMs || 5000));
   let bridgeMonitorTimer = null;
@@ -473,6 +518,43 @@ function createBotBridge({ config = {}, logger = console } = {}) {
   function getRuntimeClient() {
     if (typeof botSettings.getClient === "function") return botSettings.getClient() || null;
     return process.__soezyDiscordClient || global.client || global.bot || globalThis.client || globalThis.bot || null;
+  }
+
+  async function discordApiResponseLatency() {
+    const now = Date.now();
+    if (now - discordApiLatencySampledAt < apiLatencySampleIntervalMs) return discordApiLatency;
+    if (discordApiLatencyInFlight) return discordApiLatencyInFlight;
+    discordApiLatencySampledAt = now;
+
+    discordApiLatencyInFlight = (async () => {
+      if (typeof fetch !== "function" || typeof AbortController !== "function") {
+        discordApiLatency = null;
+        return null;
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), apiLatencyTimeoutMs);
+      timeout.unref?.();
+      const startedAt = process.hrtime.bigint();
+      try {
+        const response = await fetch("https://discord.com/api/v10/gateway", {
+          method: "GET",
+          headers: { accept: "application/json" },
+          signal: controller.signal
+        });
+        await response.arrayBuffer();
+        discordApiLatency = response.ok
+          ? Math.round(Number(process.hrtime.bigint() - startedAt) / 1e6)
+          : null;
+      } catch {
+        discordApiLatency = null;
+      } finally {
+        clearTimeout(timeout);
+      }
+      return discordApiLatency;
+    })().finally(() => {
+      discordApiLatencyInFlight = null;
+    });
+    return discordApiLatencyInFlight;
   }
 
   function runtimeReady() {
@@ -707,6 +789,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     const client = getRuntimeClient();
 
     if (client?.user) {
+      try { await client.user.fetch(true); } catch {}
       let avatar = null;
       try {
         avatar = client.user.displayAvatarURL?.({ size: 128, extension: client.user.avatar?.startsWith?.("a_") ? "gif" : "png" }) ||
@@ -716,6 +799,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
         clientId: client.user.id || botConfig.clientId || "",
         username: client.user.globalName || client.user.username || botConfig.username || "Soezy",
         avatar,
+        banner: client.user.bannerURL?.({ size: 1024 }) || null,
         verified: true
       };
       botIdentityFetchedAt = now;
@@ -736,6 +820,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
           clientId: user.id || identity.clientId,
           username: user.global_name || user.username || identity.username,
           avatar: avatarUrl(user) || identity.avatar,
+          banner: user.banner ? `https://cdn.discordapp.com/banners/${user.id}/${user.banner}.${user.banner.startsWith("a_") ? "gif" : "png"}?size=1024` : null,
           verified: user.verified ?? identity.verified
         };
       }
@@ -797,6 +882,9 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     if (!g.antinuke) g.antinuke = { enabled: false, events: {}, punishment: "ban", maxBans: 3, maxKicks: 3, maxChannelDelete: 3, maxRoleDelete: 3, timeWindow: 10000 };
     if (!g.automod) g.automod = { enabled: false, antiSpam: {}, antiMassMention: {}, antiCaps: {}, antiEmoji: {}, antiInvite: {} };
     if (!g.antilink) g.antilink = { enabled: false, action: "delete" };
+    if (!g.antibot) g.antibot = { enabled: false, whitelist: [], action: "kick" };
+    g.antibot.whitelistUsers = [...new Set([...(Array.isArray(g.antibot.whitelist) ? g.antibot.whitelist : []), ...(Array.isArray(g.antibot.whitelistUsers) ? g.antibot.whitelistUsers : [])].map(String))];
+    g.antibot.whitelist = g.antibot.whitelistUsers;
     if (!g.logging) g.logging = { enabled: false, channels: {}, events: {} };
     if (!g.security) g.security = { enabled: false, whitelistUsers: [], whitelistRoles: [] };
     if (!Array.isArray(g.whitelistUsers)) g.whitelistUsers = [];
@@ -849,6 +937,26 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     return (Array.isArray(entry?.extraOwners) ? entry.extraOwners : []).map(String).includes(id);
   }
 
+  function isConfiguredBotOwner(actorId) {
+    const id = String(actorId || "");
+    if (!id) return false;
+    if (globalThis.soezyOwnerManager?.isBotOwner?.(id) === true || globalThis.isConfiguredBotOwner?.(id) === true) return true;
+    const owners = [
+      ...(Array.isArray(config.ownerIds) ? config.ownerIds : []),
+      ...(Array.isArray(config.owners) ? config.owners : []),
+      ...(Array.isArray(config.bot?.ownerIds) ? config.bot.ownerIds : []),
+      ...(Array.isArray(config.bot?.owners) ? config.bot.owners : []),
+      ...(Array.isArray(botConfig.ownerIds) ? botConfig.ownerIds : []),
+      ...(Array.isArray(botConfig.owners) ? botConfig.owners : []),
+    ].map(String);
+    return owners.includes(id);
+  }
+
+  function isGuildOwner(guildId, actorId) {
+    const guild = getRuntimeClient()?.guilds?.cache?.get?.(String(guildId));
+    return Boolean(guild?.ownerId && String(guild.ownerId) === String(actorId || ""));
+  }
+
   async function validateSecurityList(guildId, pathKey, value) {
     const plural = String(pathKey).match(/(Users|Roles|Channels)$/)?.[1];
     const singularRole = /(?:^|\.)whitelistRoleId$/.test(pathKey) || /^featureRoleIds\./.test(pathKey);
@@ -858,6 +966,15 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     const ids = Array.isArray(value) ? value : [value];
     if (value === null || value === "") return null;
     if (ids.some(id => !/^\d{17,22}$/.test(String(id || "")))) throw Object.assign(new Error("Whitelist entries must be valid Discord IDs."), { status: 400 });
+    if (pathKey === "antibot.whitelistUsers") {
+      const client = getRuntimeClient();
+      if (typeof client?.users?.fetch !== "function") throw Object.assign(new Error("Discord bot account verification is unavailable."), { status: 503 });
+      for (const id of ids) {
+        const bot = await client.users.fetch(String(id)).catch(() => null);
+        if (!bot?.bot) throw Object.assign(new Error("Anti-Bot trusted entries must be valid Discord bot IDs."), { status: 400 });
+      }
+      return [...new Set(ids.map(String))];
+    }
     const guild = getRuntimeClient()?.guilds?.cache?.get?.(String(guildId));
     if (guild) {
       const manager = type === "user" ? guild.members : type === "role" ? guild.roles : guild.channels;
@@ -911,7 +1028,11 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     const db = loadDatabase();
     const g = ensureGuild(db, guildId);
     const mayReadProtected = canManageSecurity(guildId, actorId);
+    const owner = isGuildOwner(guildId, actorId);
+    const websiteActions = ["sticky", "roleicon", "prefix", "autorole", "community", "ticketPanel", "botprofile", "antiBetrayal"];
+    if (isConfiguredBotOwner(actorId)) websiteActions.push("botstatus");
     return {
+      dashboardCapabilities: { extendedModuleSettings: true, websiteActions },
       ...(mayReadProtected ? {
         securitySchema: securitySettings.schema(g),
         securityAccess: true,
@@ -933,6 +1054,23 @@ function createBotBridge({ config = {}, logger = console } = {}) {
         immuneRoles: g.immuneRoles,
         immuneChannels: g.immuneChannels,
         featureRoleIds: g.featureRoleIds || {},
+      } : owner ? {
+        securitySchema: {
+          antinuke: securitySettings.schema(g).antinuke,
+          automod: securitySettings.schema(g).automod,
+        },
+        securityAccess: false,
+        badWordEnabled: g.badWordEnabled,
+        badWords: g.badWords,
+        badWordConfig: g.badWordConfig,
+        nsfwProtection: g.nsfwProtection,
+        nsfwConfig: g.nsfwConfig,
+        accountAge: g.accountAge,
+        antinuke: g.antinuke,
+        automod: g.automod,
+        antibot: g.antibot,
+        wallSystem: g.wallSystem,
+        featureRoleIds: Object.fromEntries(Object.entries(g.featureRoleIds || {}).filter(([key]) => ["antinuke", "automod", "wall"].includes(key))),
       } : {
         antinuke: { enabled: g.antinuke?.systemEnabled === true || g.antinuke?.enabled === true, systemEnabled: g.antinuke?.systemEnabled === true || g.antinuke?.enabled === true },
         automod: { enabled: g.automod?.systemEnabled === true || g.automod?.enabled === true, systemEnabled: g.automod?.systemEnabled === true || g.automod?.enabled === true },
@@ -952,6 +1090,8 @@ function createBotBridge({ config = {}, logger = console } = {}) {
       music: g.music,
       economy: g.economy,
       systems: g.systems,
+      stickySystem: g.stickySystem,
+      autoRoles: g.autoRoles,
       embeds: { dashboardDraft: g.embeds?.dashboardDraft || {} }
     };
   }
@@ -996,12 +1136,12 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     return (await botGuilds()).find(guild => guild.id === guildId) || null;
   }
 
-  async function publicGuild(guildId) {
+  async function publicGuild(guildId, actorId = null) {
     const db = loadDatabase();
     const g = ensureGuild(db, guildId);
     const modules = moduleSummary(g);
     const premiumRecord = db.premium?.guilds?.[guildId] || g.premium || null;
-    const premiumActive = Boolean(premiumRecord && (!premiumRecord.expiresAt || Number(premiumRecord.expiresAt) > Date.now()));
+    const premiumActive = premiumRecordActive(premiumRecord);
     let discord = null;
     let live = null;
     let commandTotal = 0;
@@ -1037,6 +1177,10 @@ function createBotBridge({ config = {}, logger = console } = {}) {
         active: premiumActive,
         plan: premiumRecord?.plan || null,
         expiresAt: premiumRecord?.expiresAt || null
+      },
+      entitlements: {
+        securityListLimit: securityListLimit(db, actorId, guildId),
+        plan: resolvePlan(db, actorId, guildId) || "free"
       }
     };
   }
@@ -1044,7 +1188,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
   async function guildsForSession(session) {
     const guilds = [];
     for (const guild of session.guilds || []) {
-      if (guild.canManage || canManageSecurity(guild.id, session.user?.id)) guilds.push(await publicGuild(guild.id));
+      if (guild.canManage || canManageSecurity(guild.id, session.user?.id)) guilds.push(await publicGuild(guild.id, session.user?.id));
     }
     return guilds;
   }
@@ -1055,18 +1199,49 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     const applied = {};
     for (const [pathKey, rawValue] of Object.entries(updates || {})) {
       if (!ALLOWED_CONFIG_PATHS.has(pathKey)) throw Object.assign(new Error(`Unknown setting: ${pathKey}`), { status: 400 });
-      if (isProtectedConfigPath(pathKey) && !canManageSecurity(guildId, actorId)) {
-        throw Object.assign(new Error("Only the configured bot owner or an authorized ExtraOwner can update protected settings."), { status: 403 });
+      if (isOwnerOnlyModulePath(pathKey)) {
+        const guild = getRuntimeClient()?.guilds?.cache?.get?.(String(guildId));
+        if (!guild?.ownerId || String(guild.ownerId) !== String(actorId || "")) {
+          throw Object.assign(new Error("Only the Discord server owner can update AntiNuke, AutoMod, or Wall settings."), { status: 403 });
+        }
+      }
+      if (isProtectedConfigPath(pathKey) && !canManageSecurity(guildId, actorId) && !(isOwnerOnlyModulePath(pathKey) && isGuildOwner(guildId, actorId))) {
+        throw Object.assign(new Error("Only the Discord server owner can update protected settings."), { status: 403 });
       }
       securitySettings.validate(pathKey, rawValue);
-      let clean = cleanValue(rawValue);
+      moduleSettings.validate(pathKey, rawValue);
+      let clean = moduleSettings.fields.has(pathKey) ? moduleSettings.clean(pathKey, rawValue) : cleanValue(rawValue);
       if (clean === undefined) continue;
+      if (pathKey === "automod.antiLink.allowedDomains") {
+        const { normalizeDomain } = require("../handlers/automod/antiLinkFilter");
+        if (!Array.isArray(clean) || clean.length > MAX_STORED_LIST_ENTRIES) {
+          throw Object.assign(new Error(`Allowed domains must be a list of up to ${MAX_STORED_LIST_ENTRIES} entries.`), { status: 400 });
+        }
+        const domains = clean.map(normalizeDomain);
+        if (domains.some(domain => !domain)) throw Object.assign(new Error("Enter valid domain names or URLs, one per line."), { status: 400 });
+        clean = [...new Set(domains)];
+      }
       if (isProtectedConfigPath(pathKey)) clean = await validateSecurityList(guildId, pathKey, clean);
+      const roleListPath = pathKey === "security.whitelistRoles" || pathKey === "whitelistRoles" || pathKey === "immuneRoles";
+      const domainListPath = pathKey === "automod.antiLink.allowedDomains";
+      if (roleListPath || domainListPath) {
+        const current = domainListPath ? (g.automod?.antiLink?.allowedDomains || []) : (g.security?.whitelistRoles || g.whitelistRoles || []);
+        const currentEntries = new Set(Array.isArray(current) ? current.map(String) : []);
+        const nextEntries = Array.isArray(clean) ? clean.map(String) : [];
+        const limit = securityListLimit(db, actorId, guildId);
+        if (nextEntries.length > limit && nextEntries.some(entry => !currentEntries.has(entry))) {
+          const plan = resolvePlan(db, actorId, guildId) || "free";
+          const cap = limit >= MAX_STORED_LIST_ENTRIES ? String(MAX_STORED_LIST_ENTRIES) : String(limit);
+          const label = domainListPath ? "Allowed domains" : "Trusted roles";
+          throw Object.assign(new Error(`${label} are limited to ${cap} entries on the ${plan} plan. Upgrade the server or account premium to add more.`), { status: 403 });
+        }
+      }
       applied[pathKey] = clean;
     }
     // Validate the complete patch before mutating live guild state.
     for (const [pathKey, clean] of Object.entries(applied)) setNested(g, pathKey, clean);
     securitySettings.applyAliases(g, applied);
+    if (Object.hasOwn(applied, "antibot.whitelistUsers")) g.antibot.whitelist = g.antibot.whitelistUsers;
     const roleMap = require("./featureRoleMap");
     for (const [pathKey, value] of Object.entries(applied)) {
       const match = pathKey.match(/^featureRoleIds\.(access|antinuke|wall|automod|antibot|antiraid)$/);
@@ -1129,11 +1304,54 @@ function createBotBridge({ config = {}, logger = console } = {}) {
       g.immuneRoles = g.security.whitelistRoles;
     }
     if (Object.keys(applied).length) {
+      const reset = require("./securityDisableFeatures");
+      if (applied["antinuke.enabled"] === false || applied["antinuke.systemEnabled"] === false) reset.disableAntiNukeFeatures(g, securitySettings.antinuke?.map(item => item.id) || [], db.guildSystems?.[guildId]);
+      if (applied["automod.enabled"] === false || applied["automod.systemEnabled"] === false) reset.disableAutoModFeatures(g, db.guildSystems?.[guildId]);
+      if (applied["wallSystem.enabled"] === false || applied["wallSystem.systemEnabled"] === false) reset.disableWallFeatures(g);
       await saveDatabase(db, guildId);
-      await botSettings.onConfigUpdated?.(guildId, applied);
+      const requiresNativeAutomodSync = Object.keys(applied).some(key => /^(automod|security|badWord|nsfw|accountAge|antibot|antilink)/.test(key));
+      let nativeAutomodSync = null;
+      if (typeof botSettings.onConfigUpdated === "function") {
+        try {
+          const updateResult = await botSettings.onConfigUpdated(guildId, applied);
+          if (requiresNativeAutomodSync) {
+            nativeAutomodSync = updateResult?.nativeAutomodSync || {
+              status: "synced",
+              message: "Discord AutoMod rules are synchronized."
+            };
+            if (nativeAutomodSync.status === "synced" && g.nativeAutomod?.lastError) {
+              delete g.nativeAutomod.lastError;
+            }
+          }
+        } catch (error) {
+          if (!requiresNativeAutomodSync) throw error;
+          const knownDiscordCodes = new Set([50001, 50013, 30035, 50035, 429]);
+          const message = knownDiscordCodes.has(Number(error?.code))
+            ? require("./nativeAutomodService").apiError(error)
+            : "Discord AutoMod could not synchronize. Settings are saved; check the bot connection and permissions, then retry.";
+          g.nativeAutomod ||= {};
+          g.nativeAutomod.lastError = message;
+          nativeAutomodSync = {
+            status: "failed",
+            message: `Settings were saved, but Discord AutoMod sync failed: ${message}`
+          };
+          console.error(`[DASHBOARD] guild=${guildId}: ${nativeAutomodSync.message}`);
+        }
+        // The sync updates managed-rule IDs and status after the settings write.
+        // Persist those fields too, including a failure marker when Discord rejects the sync.
+        await saveDatabase(db, guildId);
+      }
+      const response = {
+        guild: await publicGuild(guildId, actorId),
+        config: safeConfig(guildId, actorId),
+        applied,
+        updatedAt: Date.now()
+      };
+      if (nativeAutomodSync) response.nativeAutomodSync = nativeAutomodSync;
+      return response;
     }
     return {
-      guild: await publicGuild(guildId),
+      guild: await publicGuild(guildId, actorId),
       config: safeConfig(guildId, actorId),
       applied,
       updatedAt: Date.now()
@@ -1184,6 +1402,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
       runtimeClientId: base.clientId || "",
       botUsername: identity.username,
       botAvatar: identity.avatar,
+      botBanner: identity.banner || null,
       botVerified: identity.verified,
       bridge,
       bridgeState: bridge.state,
@@ -1191,10 +1410,12 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     });
 
     const client = getRuntimeClient();
+    const apiLatency = await discordApiResponseLatency();
     const memory = process.memoryUsage();
     const cpu = process.cpuUsage();
     return withLiveIdentity({
       online: runtimeReady(),
+      antiBetrayalReady: Boolean(client?._antiBetrayal),
       stale: !runtimeReady(),
       servers: fallbackStats.servers,
       users: fallbackStats.users,
@@ -1203,8 +1424,10 @@ function createBotBridge({ config = {}, logger = console } = {}) {
       clientId: identity.clientId,
       botUsername: identity.username,
       botAvatar: identity.avatar,
+      botBanner: identity.banner || null,
       ping: Number.isFinite(client?.ws?.ping) ? Math.round(client.ws.ping) : null,
       latency: Number.isFinite(client?.ws?.ping) ? Math.round(client.ws.ping) : null,
+      apiLatency,
       uptime: Math.floor(process.uptime()),
       shards: client?.shard?.count || botSettings.shards || Number(process.env.SOEZY_SHARDS || 1),
       clusters: botSettings.clusters || Number(process.env.SOEZY_CLUSTERS || 1),
@@ -1228,6 +1451,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
   async function health() {
     const db = loadDatabase();
     const guildCount = Object.keys(db.guilds || {}).length;
+    const runtimeClient = getRuntimeClient();
     let databaseStat = null;
     try { databaseStat = fs.statSync(databasePath); } catch {}
 
@@ -1262,20 +1486,19 @@ function createBotBridge({ config = {}, logger = console } = {}) {
       userCount: Number(botStatus.users ?? 0),
       commands: Number(botStatus.commands ?? 0),
       latency: botStatus.latency ?? botStatus.ping ?? null,
+      apiLatency: botStatus.apiLatency ?? null,
       uptime: botStatus.uptime ?? null,
       bridge,
       bridgeOnline: bridge.online,
       bridgeConnected: bridge.online,
       bridgeState: bridge.state,
       bot: botStatus,
-      database: {
-        ok: Boolean(databaseStat || guildCount || getRuntimeClient()?._db),
-        mode: "internal",
-        guilds: Number(guildCount),
-        updatedAt: databaseStat ? databaseStat.mtimeMs : null,
-        bytes: databaseStat ? databaseStat.size : 0,
-        file: "database.json"
-      },
+      database: databaseHealthStatus({
+        store: globalThis.soezyDatabase,
+        databaseStat,
+        guildCount,
+        runtimeDb: runtimeClient?._db
+      }),
       system: {
         mode: "internal",
         online: botOnline,
@@ -1336,7 +1559,17 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     runtimeEvents.removeAllListeners();
   }
 
+  const dashboardAction = createDashboardActions({
+    getClient: getRuntimeClient, loadDatabase, saveDatabase, canManageSecurity,
+    botPrefix: botConfig.prefix || ",", onCommunityUpdated: botSettings.onCommunityUpdated,
+    isBotOwner: isConfiguredBotOwner,
+    applyBotPresence: presence => {
+      if (typeof globalThis.__soezyApplyBotPresence !== "function") throw new Error("Bot presence updater is unavailable.");
+      return globalThis.__soezyApplyBotPresence(presence);
+    },
+  });
   return {
+    dashboardAction,
     allowedConfigPaths: ALLOWED_CONFIG_PATHS,
     auditEvents,
     bridge: bridgeSnapshot,
@@ -1344,6 +1577,7 @@ function createBotBridge({ config = {}, logger = console } = {}) {
     botDir,
     cleanValue,
     canManageSecurity,
+    isGuildOwner,
     isProtectedConfigPath,
     botIdentity,
     botGuildIds,
@@ -1370,4 +1604,4 @@ function createBotBridge({ config = {}, logger = console } = {}) {
 // ─────────────────────────────────────────────────────────────
 
 
-module.exports = { createBotBridge };
+module.exports = { createBotBridge, databaseHealthStatus };

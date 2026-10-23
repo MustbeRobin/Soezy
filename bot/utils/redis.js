@@ -74,7 +74,10 @@ class UpstashRestClient extends EventEmitter {
   async eval(script, { keys = [], arguments: args = [] } = {}) {
     return this.command("EVAL", [script, keys.length, ...keys, ...args]);
   }
-  withCommandOptions(options = {}) { return { ping: () => this.ping(options) }; }
+  withCommandOptions(options = {}) {
+    const signal = options.abortSignal || options.signal;
+    return { ping: () => this.ping(signal ? { signal } : {}) };
+  }
   async close() { this.isReady = false; this.isOpen = false; }
   destroy() { this.isReady = false; this.isOpen = false; }
 }
@@ -100,9 +103,12 @@ function logStatus(key, message) {
 
 function getRedisClient() {
   if (client) return client;
+  const provider = String(process.env.REDIS_PROVIDER || "").trim().toLowerCase();
+  if (provider && !["upstash-rest", "tcp"].includes(provider)) throw new Error("REDIS_PROVIDER must be upstash-rest or tcp");
   const restUrl = process.env.UPSTASH_REDIS_REST_URL;
   const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (restUrl || restToken) {
+  if (provider === "tcp" && (restUrl || restToken)) throw new Error("REDIS_PROVIDER=tcp conflicts with configured Upstash REST credentials");
+  if (provider === "upstash-rest" || restUrl || restToken) {
     if (!restUrl || !restToken) throw new Error("Both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required");
     const parsedUrl = new URL(restUrl);
     if (parsedUrl.protocol !== "https:") throw new Error("Upstash Redis REST URL must use HTTPS");
@@ -110,7 +116,9 @@ function getRedisClient() {
     return client;
   }
   const { host, port, database, tls } = getRedisConfig();
-  if (!tls && !["127.0.0.1", "localhost", "::1"].includes(host.toLowerCase())) {
+  const isLoopback = ["127.0.0.1", "localhost", "::1"].includes(host.toLowerCase());
+  if (!provider && !isLoopback) throw new Error("Remote Redis requires REDIS_PROVIDER=tcp or configured Upstash REST credentials");
+  if (!tls && !isLoopback) {
     logStatus("plaintext", "[REDIS] Warning: remote Redis is using unencrypted TCP; use a TLS endpoint or encrypted tunnel");
   }
   const redisClient = createClient({

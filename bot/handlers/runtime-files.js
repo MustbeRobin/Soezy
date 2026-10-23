@@ -61,6 +61,8 @@ module.exports = [
   "handlers/commands.js",
   "handlers/music.js",
   "handlers/security.js",
+  "handlers/anti-betrayal.js",
+  "handlers/premiumAutomation.js",
   "events/messageCreate.js",
   "events/ready.js",
   "handlers/feature-events.js",

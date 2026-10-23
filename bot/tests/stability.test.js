@@ -313,7 +313,7 @@ test("PM2 starts the bot and embedded web app as one service", () => {
   assert.equal(apps.length, 1);
   assert.equal(apps[0].name, "Soezy");
   assert.equal(apps[0].instances, 1);
-  assert.equal(apps[0].env.SOEZY_START_WEB, "true");
+  assert.equal(apps[0].env.SOEZY_START_WEB, "false");
   assert.equal(apps[0].env.SOEZY_BOT_DIR, require("node:path").resolve(__dirname, ".."));
   assert.ok(apps[0].kill_timeout >= 15000);
 });

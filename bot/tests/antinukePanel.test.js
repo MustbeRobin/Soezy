@@ -53,6 +53,25 @@ test("disabled panel shows saved preferences as inactive", () => {
   assert.match(text, /`Disabled`/); assert.match(text, /Not Configured/); assert.match(text, /Saved Security Preferences · Inactive/);
   assert.match(text, /Anti Ban · OFF · Inactive/);
 });
+test("disabling clears all AntiNuke protections and re-enabling leaves them off", async () => {
+  const { api, gd, getEventIds } = harness(true);
+  gd.antinuke.events = Object.fromEntries(getEventIds().map(id => [id, true]));
+  gd.antinuke.features = { antiban: { enabled: true, limit: 7, punishment: "kick" } };
+  gd.antiRaid = { enabled: true, threshold: 20 };
+  gd.security = { antiraid: { enabled: true } };
+  await api.setAll("1", false, {});
+  assert.ok(Object.values(gd.antinuke.events).every(value => value === false));
+  assert.equal(gd.antinuke.features.antiban.enabled, false);
+  assert.equal(gd.antinuke.features.antiban.limit, 7);
+  assert.equal(gd.antinuke.features.antiban.punishment, "kick");
+  assert.equal(gd.antiRaid.enabled, false);
+  assert.equal(gd.antiRaid.threshold, 20);
+  await api.setAll("1", true, {});
+  const panel = api.build("1", `11_${Date.now()}`, { id: "11" }).toJSON();
+  const text = panel.components.map(component => component.content || "").join("\n");
+  assert.match(text, /Anti Ban · OFF · Inactive/);
+  assert.match(text, /Anti Raid · OFF · Inactive/);
+});
 test("master buttons reflect parent state and preserve individual preferences", () => {
   const { api, gd, getEventIds } = harness(true);
   gd.antinuke.events = Object.fromEntries(getEventIds().map(id => [id, true]));
